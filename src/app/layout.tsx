@@ -4,6 +4,7 @@ import { Geist } from "next/font/google";
 import { cn } from "@/lib/utils";
 import QueryProvider from "@/providers/QueryProvider";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import Script from 'next/script';
 
 const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
@@ -20,15 +21,7 @@ export default function RootLayout({
   return (
     <html lang="tr" className={cn("h-full", geist.variable)} suppressHydrationWarning>
       <head>
-        <script dangerouslySetInnerHTML={{ __html: `
-          (function(){
-            try {
-              var s = localStorage.getItem('theme');
-              var d = window.matchMedia('(prefers-color-scheme: dark)').matches;
-              if (s === 'dark' || (!s && d)) document.documentElement.classList.add('dark');
-            } catch(e) {}
-          })();
-        `}} />
+        <Script id="theme-init" strategy="beforeInteractive" dangerouslySetInnerHTML={{ __html: `(function(){try{var s=localStorage.getItem('theme');var d=window.matchMedia('(prefers-color-scheme: dark)').matches;if(s==='dark'||(!s&&d))document.documentElement.classList.add('dark');}catch(e){}})();` }} />
       </head>
       <body className="h-full font-sans antialiased">
         <QueryProvider>
