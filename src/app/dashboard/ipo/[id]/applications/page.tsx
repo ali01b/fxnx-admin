@@ -1,4 +1,4 @@
-import { getIpoListing, getIpoApplications, distributeIpoLots, cancelIpoApplication } from '@/actions/ipo'
+import { getIpoListing, getIpoApplications, cancelIpoApplication } from '@/actions/ipo'
 import { PageContent }  from '@/components/layout/PageContent'
 import { PageHeader }   from '@/components/layout/PageHeader'
 import { SectionCard }  from '@/components/layout/SectionCard'
@@ -145,7 +145,6 @@ export default async function IpoApplicationsPage({ params }: { params: Promise<
                           applicationId={app.id}
                           defaultLots={app.requested_lots}
                           lotFiyat={listing.lot_fiyat}
-                          distributeAction={distributeIpoLots}
                         />
                         <form action={cancelIpoApplication}>
                           <input type="hidden" name="application_id" value={app.id} />

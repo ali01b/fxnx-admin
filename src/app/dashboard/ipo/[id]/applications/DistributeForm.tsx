@@ -1,15 +1,15 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { distributeIpoLots } from '@/actions/ipo'
 
 interface Props {
   applicationId: string
   defaultLots:   number
   lotFiyat:      number | null
-  distributeAction: (fd: FormData) => Promise<{ success: boolean; error?: string }>
 }
 
-export function DistributeForm({ applicationId, defaultLots, lotFiyat, distributeAction }: Props) {
+export function DistributeForm({ applicationId, defaultLots, lotFiyat }: Props) {
   const [lots,    setLots]    = useState(defaultLots)
   const [open,    setOpen]    = useState(false)
   const [error,   setError]   = useState<string | null>(null)
@@ -34,7 +34,7 @@ export function DistributeForm({ applicationId, defaultLots, lotFiyat, distribut
       const fd = new FormData()
       fd.set('application_id', applicationId)
       fd.set('allocated_lots', String(lots))
-      const res = await distributeAction(fd)
+      const res = await distributeIpoLots(fd)
       if (!res.success) {
         setError(res.error ?? 'Hata')
       } else {
