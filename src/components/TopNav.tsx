@@ -4,10 +4,9 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import {
-  LayoutDashboard, ScrollText,
-  BarChart3, Bell, Settings,
-  LogOut, Zap, ClipboardList,
-  Users2,
+  LayoutDashboard, Bell, Settings,
+  LogOut, ClipboardList,
+  Users2, Building2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { logout } from '@/actions/auth'
@@ -21,18 +20,18 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { ThemeToggle } from '@/components/ThemeToggle'
 
 
 /* ── Navigasyon öğeleri ────────────────────────────────────────────────── */
 // permission: null = herkese göster, string = sadece o izne sahip olanlar
 const PRIMARY_NAV: { href: string; label: string; exact: boolean; icon: React.ElementType; permission: Permission | null }[] = [
-  { href: '/dashboard',                   label: 'Ana Sayfa',         exact: true,  icon: LayoutDashboard, permission: null                },
-  { href: '/dashboard/instruments',       label: 'Enstrümanlar',      exact: false, icon: BarChart3,       permission: 'instruments.view'  },
-  { href: '/dashboard/trading-terms',     label: 'İşlem Koşulları',   exact: false, icon: ScrollText,      permission: 'instruments.view'  },
-  { href: '/dashboard/requests',          label: 'Talepler',          exact: false, icon: ClipboardList,   permission: 'deposits.view'     },
-  { href: '/dashboard/notifications',     label: 'Bildirimler',       exact: false, icon: Bell,            permission: 'platform.settings' },
-  { href: '/dashboard/platform-settings', label: 'Platform Ayarları', exact: false, icon: Settings,        permission: 'platform.settings' },
-  { href: '/dashboard/ib',                label: 'IB Yönetimi',       exact: false, icon: Users2,          permission: 'ib.view'           },
+  { href: '/dashboard',                   label: 'Ana Sayfa',  exact: true,  icon: LayoutDashboard, permission: null                },
+  { href: '/dashboard/requests',          label: 'Talepler',   exact: false, icon: ClipboardList,   permission: 'deposits.view'     },
+  { href: '/dashboard/notifications',     label: 'Bildirimler',exact: false, icon: Bell,            permission: 'platform.settings' },
+  { href: '/dashboard/platform-settings', label: 'Platform',   exact: false, icon: Settings,        permission: 'instruments.view'  },
+  { href: '/dashboard/ib',                label: 'IB Yönetimi',exact: false, icon: Users2,          permission: 'ib.view'           },
+  { href: '/dashboard/ipo',               label: 'Halka Arz',  exact: false, icon: Building2,       permission: 'ipo.view'          },
 ]
 
 /* ── Props ─────────────────────────────────────────────────────────────── */
@@ -74,28 +73,16 @@ export function TopNav({ userName, userEmail, now: initialNow, dbConnected, isAd
   return (
     <header className="h-14 flex-shrink-0 bg-card border-b border-border flex items-center px-4 gap-0 z-40">
 
-      {/* ── Logo ── */}
-      <Link href="/dashboard" className="flex items-center gap-2 mr-6 flex-shrink-0 group">
-        <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow">
-          <Zap size={13} className="text-primary-foreground" fill="currentColor" />
-        </div>
-        <span className="text-[15px] font-extrabold tracking-tight" style={{ color: 'var(--c-primary)' }}>
-          Bluedot
-        </span>
-        <span className="text-[9px] font-semibold uppercase tracking-widest hidden sm:block" style={{ color: 'var(--c-text-3)' }}>
-          Admin
-        </span>
-      </Link>
-
-      {/* ── Dikey ayırıcı ── */}
-      <span className="w-px h-5 bg-border mr-4 flex-shrink-0" />
 
       {/* ── Primary nav ── */}
       <nav className="flex items-center gap-0.5 flex-1 min-w-0">
         {visibleNav.map((item) => {
+          const PLATFORM_HREFS = ['/dashboard/platform-settings', '/dashboard/instruments', '/dashboard/trading-terms']
           const isActive = item.exact
             ? pathname === item.href
-            : pathname.startsWith(item.href)
+            : item.href === '/dashboard/platform-settings'
+              ? PLATFORM_HREFS.some(h => pathname.startsWith(h))
+              : pathname.startsWith(item.href)
           const Icon = item.icon
           return (
             <Link
@@ -148,6 +135,10 @@ export function TopNav({ userName, userEmail, now: initialNow, dbConnected, isAd
             {time}
           </span>
         </div>
+
+        <span className="w-px h-4 bg-border" />
+
+        <ThemeToggle />
 
         <span className="w-px h-4 bg-border" />
 

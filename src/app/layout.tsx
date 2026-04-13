@@ -18,7 +18,18 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="tr" className={cn("h-full", geist.variable)}>
+    <html lang="tr" className={cn("h-full", geist.variable)} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: `
+          (function(){
+            try {
+              var s = localStorage.getItem('theme');
+              var d = window.matchMedia('(prefers-color-scheme: dark)').matches;
+              if (s === 'dark' || (!s && d)) document.documentElement.classList.add('dark');
+            } catch(e) {}
+          })();
+        `}} />
+      </head>
       <body className="h-full font-sans antialiased">
         <QueryProvider>
           <TooltipProvider>

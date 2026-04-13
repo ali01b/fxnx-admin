@@ -28,14 +28,14 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const userName    = profile ? `${profile.first_name} ${profile.last_name}` : 'Admin'
   const dbConnected = !dbError
 
-  const { accounts, positions } = sidebarData
+  const { accounts, positions, instrumentMap } = sidebarData
 
   // IB kullanıcısı için sade layout
   if (isIBUser) {
     return (
-      <div className="flex flex-col h-screen overflow-hidden" style={{ background: 'var(--c-bg)' }}>
+      <div className="flex flex-col h-screen overflow-hidden bg-background">
         <header className="h-14 flex-shrink-0 bg-card border-b border-border flex items-center px-6 gap-4 z-40">
-          <span className="text-[15px] font-extrabold tracking-tight" style={{ color: 'var(--c-primary)' }}>
+          <span className="text-[15px] font-extrabold tracking-tight text-primary">
             Bluedot
           </span>
           <span className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">
@@ -53,7 +53,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <QuoteProvider>
-      <div className="flex flex-col h-screen overflow-hidden" style={{ background: 'var(--c-bg)' }}>
+      <div className="flex flex-col h-screen overflow-hidden bg-background">
         <TopNav
           userName={userName}
           userEmail={profile?.email ?? ''}
@@ -66,7 +66,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
           <main className="flex-1 overflow-auto min-h-0">
             {children}
           </main>
-          <GlobalSidebar initialAccounts={accounts} initialPositions={positions} />
+          <GlobalSidebar initialAccounts={accounts} initialPositions={positions} instrumentMap={instrumentMap} />
         </div>
       </div>
     </QuoteProvider>

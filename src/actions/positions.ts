@@ -33,19 +33,24 @@ export async function createPosition(formData: FormData): Promise<void> {
   const supabase    = createAdminClient()
   const accountId   = formData.get('account_id') as string
 
+  const rawDisplayQty  = formData.get('display_qty')  as string
+  const rawDisplayCost = formData.get('display_cost') as string
+
   await supabase.from('positions').insert({
-    profile_id:  formData.get('profile_id') as string,
-    account_id:  accountId,
-    symbol:      (formData.get('symbol') as string).toUpperCase().trim(),
-    side:        'buy',
-    qty:         Number(formData.get('qty')),
-    avg_cost:    Number(formData.get('avg_cost')),
-    leverage:    Number(formData.get('leverage'))   || 1,
-    commission:  Number(formData.get('commission')) || 0,
-    swap:        Number(formData.get('swap'))        || 0,
-    used_margin: Number(formData.get('used_margin')) || 0,
-    status:      'open',
-    opened_at:   (formData.get('opened_at') as string) || new Date().toISOString(),
+    profile_id:   formData.get('profile_id') as string,
+    account_id:   accountId,
+    symbol:       (formData.get('symbol') as string).toUpperCase().trim(),
+    side:         'buy',
+    qty:          Number(formData.get('qty')),
+    avg_cost:     Number(formData.get('avg_cost')),
+    leverage:     Number(formData.get('leverage'))   || 1,
+    commission:   Number(formData.get('commission')) || 0,
+    swap:         Number(formData.get('swap'))        || 0,
+    used_margin:  Number(formData.get('used_margin')) || 0,
+    status:       'open',
+    opened_at:    (formData.get('opened_at') as string) || new Date().toISOString(),
+    display_qty:  rawDisplayQty  ? Number(rawDisplayQty)  : null,
+    display_cost: rawDisplayCost ? Number(rawDisplayCost) : null,
   })
 
   await refreshAccountMargin(supabase, accountId)
@@ -57,16 +62,21 @@ export async function updatePosition(formData: FormData): Promise<void> {
   const id       = formData.get('id') as string
   const status   = formData.get('status') as string
 
+  const rawDisplayQty  = formData.get('display_qty')  as string
+  const rawDisplayCost = formData.get('display_cost') as string
+
   const updates: Record<string, unknown> = {
-    symbol:      (formData.get('symbol') as string).toUpperCase().trim(),
-    side:        'buy',
-    qty:         Number(formData.get('qty')),
-    avg_cost:    Number(formData.get('avg_cost')),
-    leverage:    Number(formData.get('leverage'))   || 1,
-    commission:  Number(formData.get('commission')) || 0,
-    swap:        Number(formData.get('swap'))        || 0,
-    used_margin: Number(formData.get('used_margin')) || 0,
-    opened_at:   formData.get('opened_at') as string,
+    symbol:       (formData.get('symbol') as string).toUpperCase().trim(),
+    side:         formData.get('side') as string || 'buy',
+    qty:          Number(formData.get('qty')),
+    avg_cost:     Number(formData.get('avg_cost')),
+    leverage:     Number(formData.get('leverage'))   || 1,
+    commission:   Number(formData.get('commission')) || 0,
+    swap:         Number(formData.get('swap'))        || 0,
+    used_margin:  Number(formData.get('used_margin')) || 0,
+    opened_at:    formData.get('opened_at') as string,
+    display_qty:  rawDisplayQty  ? Number(rawDisplayQty)  : null,
+    display_cost: rawDisplayCost ? Number(rawDisplayCost) : null,
   }
 
   if (status === 'closed') {

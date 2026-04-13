@@ -17,13 +17,13 @@ interface Props {
 }
 
 const REJECTION_REASONS = [
-  { code: 'BLURRY_IMAGE',     label: 'Blurry / unreadable image' },
-  { code: 'EXPIRED_ID',       label: 'Document expired'          },
-  { code: 'MISMATCH',         label: 'Name / date mismatch'      },
-  { code: 'INCOMPLETE',       label: 'Incomplete document'        },
-  { code: 'WRONG_DOCUMENT',   label: 'Wrong document type'       },
-  { code: 'SELFIE_MISMATCH',  label: 'Selfie does not match ID'  },
-  { code: 'SUSPECTED_FRAUD',  label: 'Suspected fraud'           },
+  { code: 'BLURRY_IMAGE',     label: 'Bulanık / okunamaz görüntü' },
+  { code: 'EXPIRED_ID',       label: 'Süresi dolmuş belge'        },
+  { code: 'MISMATCH',         label: 'Ad / tarih uyuşmazlığı'     },
+  { code: 'INCOMPLETE',       label: 'Eksik belge'                 },
+  { code: 'WRONG_DOCUMENT',   label: 'Yanlış belge türü'           },
+  { code: 'SELFIE_MISMATCH',  label: 'Selfie kimlikle eşleşmiyor' },
+  { code: 'SUSPECTED_FRAUD',  label: 'Şüpheli dolandırıcılık'     },
 ]
 
 export function KycTab({ account, kycDocUrls, kycDecisions, kycStatus, setKycStatus, onRefresh }: Props) {
@@ -44,14 +44,14 @@ export function KycTab({ account, kycDocUrls, kycDecisions, kycStatus, setKycSta
   }, [kycDocUrls])
 
   return (
-    <div className="flex flex-col" style={{ background: 'var(--c-bg)' }}>
+    <div className="flex flex-col bg-background">
 
       {/* ── Status Bar ────────────────────────────────────────────────── */}
       <div className="bg-card border-b border-border px-4 py-3 flex items-center gap-5">
 
         {/* Status badge */}
         <div className="flex flex-col gap-1">
-          <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest">KYC Status</span>
+          <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest">KYC Durumu</span>
           <span
             className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-full leading-none w-fit"
             style={{
@@ -67,7 +67,7 @@ export function KycTab({ account, kycDocUrls, kycDecisions, kycStatus, setKycSta
 
         {(profile as any)?.kyc_submitted_at && (
           <div className="flex flex-col gap-1">
-            <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest">Submitted</span>
+            <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest">Başvuru Tarihi</span>
             <span className="text-[11px] font-semibold text-foreground font-mono">
               {fmtDt((profile as any).kyc_submitted_at)}
             </span>
@@ -88,20 +88,16 @@ export function KycTab({ account, kycDocUrls, kycDecisions, kycStatus, setKycSta
                 onRefresh()
               }}
               className={btnPrimary}
-              style={{ background: 'var(--c-bull)' }}
             >
-              Approve KYC
+              KYC Onayla
             </button>
           )}
           {kycStatus !== 'rejected' && (
             <button
               onClick={() => setShowReject((v) => !v)}
-              className={showReject
-                ? `${btnPrimary} !bg-[var(--c-bear)]`
-                : btnDanger
-              }
+              className={showReject ? btnSecondary : btnDanger}
             >
-              {showReject ? 'Cancel' : 'Reject KYC'}
+              {showReject ? 'İptal' : 'KYC Reddet'}
             </button>
           )}
           {kycStatus !== 'pending' && kycStatus !== 'unverified' && (
@@ -116,7 +112,7 @@ export function KycTab({ account, kycDocUrls, kycDecisions, kycStatus, setKycSta
               }}
               className={btnGhost}
             >
-              Reset to Pending
+              Beklemede Sıfırla
             </button>
           )}
         </div>
@@ -138,10 +134,10 @@ export function KycTab({ account, kycDocUrls, kycDecisions, kycStatus, setKycSta
         >
           <div className="flex-1">
             <label className="block text-[9px] font-semibold uppercase tracking-widest mb-1" style={{ color: 'var(--c-bear)' }}>
-              Rejection Reason
+              Red Nedeni
             </label>
             <select name="reason" className={`${fieldCls} w-full`}>
-              <option value="">— Select reason —</option>
+              <option value="">— Neden seçin —</option>
               {REJECTION_REASONS.map((r) => (
                 <option key={r.code} value={r.code}>{r.label}</option>
               ))}
@@ -149,16 +145,15 @@ export function KycTab({ account, kycDocUrls, kycDecisions, kycStatus, setKycSta
           </div>
           <div className="flex-1">
             <label className="block text-[9px] font-semibold uppercase tracking-widest mb-1" style={{ color: 'var(--c-bear)' }}>
-              Note (optional)
+              Not (isteğe bağlı)
             </label>
-            <input name="note" placeholder="Additional note…" className={`${fieldCls} w-full`} />
+            <input name="note" placeholder="Ek not…" className={`${fieldCls} w-full`} />
           </div>
           <button
             type="submit"
-            className={btnPrimary}
-            style={{ background: 'var(--c-bear)', flexShrink: 0 }}
+            className={`${btnDanger} flex-shrink-0`}
           >
-            Confirm Rejection
+            Reddi Onayla
           </button>
         </form>
       )}
@@ -171,7 +166,7 @@ export function KycTab({ account, kycDocUrls, kycDecisions, kycStatus, setKycSta
 
           {/* Section label */}
           <div className="px-3.5 py-2 border-b border-border flex items-center">
-            <span className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">Documents</span>
+            <span className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">Belgeler</span>
           </div>
 
           {Object.keys(kycDocUrls).length === 0 ? (
@@ -182,7 +177,7 @@ export function KycTab({ account, kycDocUrls, kycDecisions, kycStatus, setKycSta
             <div className="flex flex-1 overflow-hidden">
 
               {/* Thumbnails sidebar */}
-              <div className="w-[88px] border-r border-border overflow-y-auto" style={{ background: 'var(--c-bg)' }}>
+              <div className="w-[88px] border-r border-border overflow-y-auto bg-background">
                 {Object.entries(kycDocUrls).map(([name, url]) => (
                   <button
                     key={name}
@@ -233,15 +228,15 @@ export function KycTab({ account, kycDocUrls, kycDecisions, kycStatus, setKycSta
           {/* Identity */}
           <div className="px-3.5 py-2 border-b border-border">
             <span className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">
-              Identity Verification
+              Kimlik Doğrulama
             </span>
           </div>
           <div className="p-4 flex flex-col gap-3.5">
-            <FieldDisplay label="Full Name"        value={`${profile?.first_name ?? ''} ${profile?.last_name ?? ''}`.trim() || '—'} />
-            <FieldDisplay label="National ID (TC)" value={(profile as any)?.tc_identity_no ?? '—'} mono />
-            <FieldDisplay label="Nationality"      value={(profile as any)?.nationality ?? '—'} />
-            <FieldDisplay label="Date of Birth"    value={(profile as any)?.date_of_birth ? new Date((profile as any).date_of_birth).toLocaleDateString('en-GB') : '—'} />
-            <FieldDisplay label="Gender"           value={(profile as any)?.gender ?? '—'} />
+            <FieldDisplay label="Ad Soyad"          value={`${profile?.first_name ?? ''} ${profile?.last_name ?? ''}`.trim() || '—'} />
+            <FieldDisplay label="TC Kimlik No."    value={(profile as any)?.tc_identity_no ?? '—'} mono />
+            <FieldDisplay label="Uyruk"            value={(profile as any)?.nationality ?? '—'} />
+            <FieldDisplay label="Doğum Tarihi"     value={(profile as any)?.date_of_birth ? new Date((profile as any).date_of_birth).toLocaleDateString('tr-TR') : '—'} />
+            <FieldDisplay label="Cinsiyet"         value={(profile as any)?.gender ?? '—'} />
           </div>
 
           {/* Decision history */}
@@ -249,7 +244,7 @@ export function KycTab({ account, kycDocUrls, kycDecisions, kycStatus, setKycSta
             <>
               <div className="px-3.5 py-2 border-y border-border">
                 <span className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">
-                  Decision History
+                  Karar Geçmişi
                 </span>
               </div>
               <div className="p-4 flex flex-col gap-2.5">

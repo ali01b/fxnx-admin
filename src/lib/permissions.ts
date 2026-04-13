@@ -30,6 +30,11 @@ export const PERMISSIONS = [
   'ib.edit_rates',
   'ib.assign_client',
   'ib.mark_paid',
+  // ── Halka Arz ─────────────────────────────────────────────
+  'ipo.view',
+  'ipo.create',
+  'ipo.edit',
+  'ipo.delete',
   // ── Platform ──────────────────────────────────────────────
   'platform.settings',
   'platform.reports',
@@ -69,6 +74,10 @@ export const PERMISSION_GROUPS: { label: string; permissions: Permission[] }[] =
     permissions: ['ib.view', 'ib.create', 'ib.edit_rates', 'ib.assign_client', 'ib.mark_paid'],
   },
   {
+    label: 'Halka Arz',
+    permissions: ['ipo.view', 'ipo.create', 'ipo.edit', 'ipo.delete'],
+  },
+  {
     label: 'Platform',
     permissions: ['platform.settings', 'platform.reports'],
   },
@@ -103,6 +112,10 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   'ib.edit_rates':      'Komisyon oranlarını düzenle',
   'ib.assign_client':   'Müşteri ata / çıkar',
   'ib.mark_paid':       'Komisyonları ödendi işaretle',
+  'ipo.view':           'Halka arzları görüntüle',
+  'ipo.create':         'Yeni halka arz oluştur',
+  'ipo.edit':           'Halka arz düzenle',
+  'ipo.delete':         'Halka arz sil',
   'platform.settings':  'Platform ayarlarını düzenle',
   'platform.reports':   'Raporları görüntüle',
   'roles.manage':       'Rolleri ve yetkileri yönet',

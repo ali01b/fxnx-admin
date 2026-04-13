@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { getSidebarLiveData } from '@/actions/sidebar'
+import { useQuoteStore, toYahooSymbol } from '@/stores/quoteStore'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -34,6 +35,7 @@ interface SidebarPosition {
 interface Props {
   initialAccounts:  SidebarAccount[]
   initialPositions: SidebarPosition[]
+  instrumentMap:    Record<string, string>  // DB sembol → kategori
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -58,10 +60,27 @@ function InitialsAvatar({ name, size = 28 }: { name: string; size?: number }) {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function GlobalSidebar({ initialAccounts, initialPositions }: Props) {
+export function GlobalSidebar({ initialAccounts, initialPositions, instrumentMap }: Props) {
   const [accounts,      setAccounts]      = useState(initialAccounts)
   const [openPositions, setOpenPositions] = useState<SidebarPosition[]>(initialPositions)
   const [onlineUsers,   setOnlineUsers]   = useState<PresenceUser[]>([])
+
+  // ── Global WS subscription: tüm açık pozisyon sembollerine abone ol ──────
+  // openPositions değişince (yeni işlem / kapanış) subscription güncellenir
+  useEffect(() => {
+    const store = useQuoteStore.getState()
+    const uniqueSymbols = [...new Set(openPositions.map((p) => p.symbol))]
+    const yahooSymbols  = uniqueSymbols
+      .map((sym) => {
+        const cat = instrumentMap[sym]
+        return cat ? toYahooSymbol(sym, cat) : null
+      })
+      .filter((s): s is string => s !== null)
+
+    if (yahooSymbols.length === 0) return
+    store.subscribe(yahooSymbols)
+    return () => store.unsubscribe(yahooSymbols)
+  }, [openPositions, instrumentMap])
 
   useEffect(() => {
     const supabase = createClient()
@@ -156,7 +175,7 @@ export function GlobalSidebar({ initialAccounts, initialPositions }: Props) {
       {/* ── Açık Pozisyonlar ──────────────────────────────────────── */}
       <div className="flex-shrink-0 flex flex-col overflow-hidden border-b border-border" style={{ maxHeight: '50%' }}>
         <div className="px-4 py-3 flex items-center justify-between flex-shrink-0 border-b border-border">
-          <span className="text-[12px] font-bold text-foreground">Açık Pozisyonlar</span>
+          <span className="text-[13px] font-bold text-foreground">Açık Pozisyonlar</span>
           {accountsWithPositions.length > 0 ? (
             <span
               className="text-[10px] font-bold px-2 py-0.5 rounded-full"
@@ -201,7 +220,7 @@ export function GlobalSidebar({ initialAccounts, initialPositions }: Props) {
       {/* ── Online Kullanıcılar (Presence) ───────────────────────── */}
       <div className="flex-1 flex flex-col overflow-hidden min-h-0">
         <div className="px-4 py-3 flex items-center justify-between flex-shrink-0 border-b border-border">
-          <span className="text-[12px] font-bold text-foreground">Online</span>
+          <span className="text-[13px] font-bold text-foreground">Online</span>
           <span
             className="text-[10px] font-bold px-2 py-0.5 rounded-full"
             style={{ color: 'var(--c-bull)', background: 'var(--c-bull)15', border: '1px solid var(--c-bull)30' }}

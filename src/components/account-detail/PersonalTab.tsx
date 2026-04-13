@@ -9,79 +9,75 @@ export function PersonalTab({ account, kycStatus }: Props) {
   const profile = Array.isArray(account.profiles) ? account.profiles[0] : account.profiles
 
   return (
-    <div className="p-5 space-y-6 bg-card min-h-full">
+    <div className="p-5 space-y-6 min-h-full">
 
       {/* ── Identity ─────────────────────────────────────────────────── */}
-      <section>
-        <SectionHeader>Identity</SectionHeader>
+      <section className="bg-card border border-border rounded-xl p-4">
+        <SectionHeader>Kimlik</SectionHeader>
         <div className="grid grid-cols-2 gap-x-6 gap-y-4">
-          <FieldDisplay label="First Name"       value={profile?.first_name ?? '—'} />
-          <FieldDisplay label="Last Name"        value={profile?.last_name ?? '—'} />
-          <FieldDisplay label="Customer No."     value={profile?.customer_no ?? '—'} mono />
-          <FieldDisplay label="National ID (TC)" value={(profile as any)?.tc_identity_no ?? '—'} mono />
-          <FieldDisplay label="Nationality"      value={(profile as any)?.nationality ?? '—'} />
-          <FieldDisplay label="Gender"           value={(profile as any)?.gender ?? '—'} />
+          <FieldDisplay label="Ad"             value={profile?.first_name ?? '—'} />
+          <FieldDisplay label="Soyad"          value={profile?.last_name ?? '—'} />
+          <FieldDisplay label="Müşteri No."    value={profile?.customer_no ?? '—'} mono />
+          <FieldDisplay label="TC Kimlik No."  value={(profile as any)?.tc_identity_no ?? '—'} mono />
+          <FieldDisplay label="Uyruk"          value={(profile as any)?.nationality ?? '—'} />
+          <FieldDisplay label="Cinsiyet"       value={(profile as any)?.gender ?? '—'} />
           <FieldDisplay
-            label="Date of Birth"
+            label="Doğum Tarihi"
             value={(profile as any)?.date_of_birth
-              ? new Date((profile as any).date_of_birth).toLocaleDateString('en-GB')
+              ? new Date((profile as any).date_of_birth).toLocaleDateString('tr-TR')
               : '—'}
           />
           <FieldDisplay
-            label="Registered"
+            label="Kayıt Tarihi"
             value={profile?.created_at
-              ? new Date(profile.created_at).toLocaleDateString('en-GB')
+              ? new Date(profile.created_at).toLocaleDateString('tr-TR')
               : '—'}
           />
-          <FieldDisplay label="Account Type" value={account.account_type ?? '—'} />
+          <FieldDisplay label="Hesap Tipi" value={account.account_type ?? '—'} />
         </div>
       </section>
 
       {/* ── Contact ──────────────────────────────────────────────────── */}
-      <section>
-        <SectionHeader>Contact</SectionHeader>
+      <section className="bg-card border border-border rounded-xl p-4">
+        <SectionHeader>İletişim</SectionHeader>
         <div className="grid grid-cols-2 gap-x-6 gap-y-4">
-          <FieldDisplay label="Email"       value={profile?.email ?? '—'} />
-          <FieldDisplay label="Phone"       value={(profile as any)?.phone ?? '—'} />
-          <FieldDisplay label="Address"     value={(profile as any)?.address ?? '—'} />
-          <FieldDisplay label="City"        value={(profile as any)?.city ?? '—'} />
-          <FieldDisplay label="Country"     value={(profile as any)?.country ?? '—'} />
-          <FieldDisplay label="Postal Code" value={(profile as any)?.postal_code ?? '—'} />
+          <FieldDisplay label="E-posta"    value={profile?.email ?? '—'} />
+          <FieldDisplay label="Telefon"    value={(profile as any)?.phone ?? '—'} />
+          <FieldDisplay label="Adres"      value={(profile as any)?.address ?? '—'} />
+          <FieldDisplay label="Şehir"      value={(profile as any)?.city ?? '—'} />
+          <FieldDisplay label="Ülke"       value={(profile as any)?.country ?? '—'} />
+          <FieldDisplay label="Posta Kodu" value={(profile as any)?.postal_code ?? '—'} />
         </div>
       </section>
 
       {/* ── Status summary ───────────────────────────────────────────── */}
-      <section>
-        <SectionHeader>Status</SectionHeader>
-        <div className="flex gap-4">
+      <section className="bg-card border border-border rounded-xl p-4">
+        <SectionHeader>Durum</SectionHeader>
+        <div className="flex gap-3">
           {[
             {
-              label: 'Account Status',
+              label: 'Hesap Durumu',
               value: account.status,
               color: STATUS_COLOR[account.status] ?? 'var(--c-text-3)',
-              mono: false,
             },
             {
-              label: 'KYC Status',
+              label: 'KYC Durumu',
               value: kycStatus,
               color: KYC_COLOR[kycStatus] ?? 'var(--c-text-3)',
-              mono: false,
             },
             {
-              label: 'Currency',
+              label: 'Para Birimi',
               value: account.currency,
               color: 'var(--c-primary)',
-              mono: true,
             },
           ].map((item) => (
-            <div key={item.label} className="flex-1 border-l-2 pl-3 py-1" style={{ borderColor: item.color }}>
-              <div className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest mb-1">
+            <div key={item.label} className="flex-1 rounded-lg p-3"
+              style={{ background: `${item.color}10`, border: `1px solid ${item.color}25` }}>
+              <div className="text-[10px] font-medium text-muted-foreground mb-1.5">
                 {item.label}
               </div>
-              <span
-                className={`text-[13px] font-bold uppercase ${item.mono ? 'font-mono' : ''}`}
-                style={{ color: item.color }}
-              >
+              <span className="text-[13px] font-bold uppercase tracking-wide"
+                style={{ color: item.color }}>
                 {item.value}
               </span>
             </div>

@@ -43,5 +43,14 @@ export async function getSidebarLiveData() {
     }))
   }
 
-  return { accounts, positions }
+  // Sembol → kategori haritası (Yahoo symbol dönüşümü için)
+  const { data: instData } = await supabase
+    .from('instruments')
+    .select('symbol, category')
+    .eq('is_active', true)
+  const instrumentMap: Record<string, string> = Object.fromEntries(
+    (instData ?? []).map((i: any) => [i.symbol, i.category])
+  )
+
+  return { accounts, positions, instrumentMap }
 }

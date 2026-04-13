@@ -5,13 +5,13 @@ import { sendNotification } from '@/actions/notifications'
 
 const TARGET_OPTIONS = [
   { value: 'all',        label: 'Tüm Kullanıcılar', color: 'var(--c-primary)', bg: 'var(--c-primary)18' },
-  { value: 'kyc_status', label: 'KYC Durumuna Göre', color: '#7C3AED',         bg: '#7C3AED18' },
+  { value: 'kyc_status', label: 'KYC Durumuna Göre', color: 'var(--c-purple)',         bg: 'var(--c-purple)18' },
   { value: 'user',       label: 'Belirli Kullanıcı', color: 'var(--c-bull)',   bg: 'var(--c-bull)18' },
 ]
 const KYC_STATUS_OPTIONS = ['unverified', 'pending', 'verified', 'rejected']
 
 const TARGET_COLOR: Record<string, string> = {
-  all: 'var(--c-primary)', kyc_status: '#7C3AED', user: 'var(--c-bull)',
+  all: 'var(--c-primary)', kyc_status: 'var(--c-purple)', user: 'var(--c-bull)',
 }
 
 interface Notification {
@@ -182,7 +182,7 @@ export function NotificationsClient({ history: initialHistory }: Props) {
                 onClick={() => setSendEmail((v) => !v)}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-semibold cursor-pointer border transition-colors"
                 style={sendEmail
-                  ? { background: '#7C3AED18', border: '1px solid #7C3AED', color: '#7C3AED' }
+                  ? { background: 'var(--c-purple)18', border: '1px solid var(--c-purple)', color: 'var(--c-purple)' }
                   : { background: 'var(--c-muted)', border: '1px solid var(--c-border)', color: 'var(--c-text-3)' }
                 }
               >
@@ -218,8 +218,7 @@ export function NotificationsClient({ history: initialHistory }: Props) {
             <button
               type="submit"
               disabled={isPending || (!sendPush && !sendEmail)}
-              className="w-full py-2 rounded text-[12px] font-bold text-white border-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
-              style={{ background: 'var(--c-primary)' }}
+              className="w-full py-2 rounded text-[12px] font-bold bg-primary text-primary-foreground border-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
             >
               {isPending ? 'Gönderiliyor...' : 'Bildirimi Gönder'}
             </button>
@@ -300,7 +299,7 @@ export function NotificationsClient({ history: initialHistory }: Props) {
                         {n.send_email && (
                           <span
                             className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
-                            style={{ color: '#7C3AED', background: '#7C3AED18' }}
+                            style={{ color: 'var(--c-purple)', background: 'var(--c-purple)18' }}
                           >
                             E-posta
                           </span>

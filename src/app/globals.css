@@ -10,12 +10,12 @@
   /* ── Fintech uygulamasıyla eşleşen renk paleti ── */
   --c-bg:             #F7F8FA;
   --c-card:           #FFFFFF;
-  --c-border:         #EDEEF2;
-  --c-divider:        #F3F4F6;
-  --c-primary:        #1B3A6B;
-  --c-accent:         #2451A0;
-  --c-primary-soft:   #EEF2FA;
-  --c-primary-border: #D8E2F3;
+  --c-border:         #E4E6EB;
+  --c-divider:        #F0F1F3;
+  --c-primary:        #1E3A5F;
+  --c-accent:         #2B4F7A;
+  --c-primary-soft:   #F0F2F5;
+  --c-primary-border: #CDD2DC;
   --c-text-1:         #111827;
   --c-text-2:         #6B7280;
   --c-text-3:         #9CA3AF;
@@ -29,16 +29,16 @@
   --bg-page:        #F7F8FA;
   --bg-sidebar:     #FFFFFF;
   --bg-panel:       #FFFFFF;
-  --bg-nav:         #1B3A6B;
-  --nav-active:     #2451A0;
+  --bg-nav:         #1E3A5F;
+  --nav-active:     #2B4F7A;
   --bg-table-hdr:   #FAFAFA;
-  --border:         #EDEEF2;
+  --border:         #E4E6EB;
   --text-primary:   #111827;
   --text-secondary: #6B7280;
   --text-muted:     #9CA3AF;
   --positive:       #00A651;
   --negative:       #E5202E;
-  --teal:           #1B3A6B;
+  --teal:           #1E3A5F;
   --amber:          #F59E0B;
   --orange:         #F97316;
   /* ── shadcn/ui token mapping ── */
@@ -48,18 +48,18 @@
   --card-foreground:         #111827;
   --popover:                 #FFFFFF;
   --popover-foreground:      #111827;
-  --primary:                 #1B3A6B;
+  --primary:                 #1E3A5F;
   --primary-foreground:      #FFFFFF;
-  --secondary:               #EEF2FA;
-  --secondary-foreground:    #1B3A6B;
-  --muted:                   #F7F8FA;
+  --secondary:               #F0F2F5;
+  --secondary-foreground:    #374151;
+  --muted:                   #F4F5F7;
   --muted-foreground:        #6B7280;
-  --accent:                  #EEF2FA;
-  --accent-foreground:       #1B3A6B;
+  --accent:                  #F0F2F5;
+  --accent-foreground:       #374151;
   --destructive:             #E5202E;
-  --input:                   #EDEEF2;
-  --ring:                    #1B3A6B;
-  --chart-1:                 #1B3A6B;
+  --input:                   #E4E6EB;
+  --ring:                    #1E3A5F;
+  --chart-1:                 #1E3A5F;
   --chart-2:                 #00A651;
   --chart-3:                 #F59E0B;
   --chart-4:                 #E5202E;
@@ -67,12 +67,12 @@
   --radius:                  0.75rem;
   --sidebar:                 #FFFFFF;
   --sidebar-foreground:      #111827;
-  --sidebar-primary:         #1B3A6B;
+  --sidebar-primary:         #1E3A5F;
   --sidebar-primary-foreground: #FFFFFF;
-  --sidebar-accent:          #EEF2FA;
-  --sidebar-accent-foreground: #1B3A6B;
-  --sidebar-border:          #EDEEF2;
-  --sidebar-ring:            #1B3A6B;
+  --sidebar-accent:          #F0F2F5;
+  --sidebar-accent-foreground: #374151;
+  --sidebar-border:          #E4E6EB;
+  --sidebar-ring:            #1E3A5F;
 }
 
 body {
@@ -103,7 +103,7 @@ table { border-collapse: collapse; width: 100%; }
 
 /* ── Tablo ── */
 .sirix-table th {
-  background: #FAFAFA;
+  background: var(--c-bg);
   border-bottom: 1px solid var(--c-border);
   color: var(--c-text-3);
   font-size: 11px;
@@ -220,14 +220,65 @@ table { border-collapse: collapse; width: 100%; }
 
 /* Server Component hover helpers */
 a.dash-kpi-link:hover .dash-kpi-inner { box-shadow: 0 4px 16px rgba(0,0,0,0.07); }
-.dash-user-row:hover { background: #EEF2FA !important; }
-.dash-top-account:hover { background: #F7F8FA !important; }
-.sidebar-user-row:hover { background: #F7F8FA; }
-.sidebar-kyc-row:hover { background: #FFFBEB; }
+.dash-user-row:hover { background: var(--c-primary-soft) !important; }
+.dash-top-account:hover { background: var(--c-bg) !important; }
+.sidebar-user-row:hover { background: var(--c-bg); }
+.sidebar-kyc-row:hover { background: color-mix(in srgb, var(--c-amber) 8%, transparent); }
 
 @theme inline { --font-heading: var(--font-sans); --font-sans: var(--font-sans); --color-sidebar-ring: var(--sidebar-ring); --color-sidebar-border: var(--sidebar-border); --color-sidebar-accent-foreground: var(--sidebar-accent-foreground); --color-sidebar-accent: var(--sidebar-accent); --color-sidebar-primary-foreground: var(--sidebar-primary-foreground); --color-sidebar-primary: var(--sidebar-primary); --color-sidebar-foreground: var(--sidebar-foreground); --color-sidebar: var(--sidebar); --color-chart-5: var(--chart-5); --color-chart-4: var(--chart-4); --color-chart-3: var(--chart-3); --color-chart-2: var(--chart-2); --color-chart-1: var(--chart-1); --color-ring: var(--ring); --color-input: var(--input); --color-border: var(--border); --color-destructive: var(--destructive); --color-accent-foreground: var(--accent-foreground); --color-accent: var(--accent); --color-muted-foreground: var(--muted-foreground); --color-muted: var(--muted); --color-secondary-foreground: var(--secondary-foreground); --color-secondary: var(--secondary); --color-primary-foreground: var(--primary-foreground); --color-primary: var(--primary); --color-popover-foreground: var(--popover-foreground); --color-popover: var(--popover); --color-card-foreground: var(--card-foreground); --color-card: var(--card); --color-foreground: var(--foreground); --color-background: var(--background); --radius-sm: calc(var(--radius) * 0.6); --radius-md: calc(var(--radius) * 0.8); --radius-lg: var(--radius); --radius-xl: calc(var(--radius) * 1.4); --radius-2xl: calc(var(--radius) * 1.8); --radius-3xl: calc(var(--radius) * 2.2); --radius-4xl: calc(var(--radius) * 2.6); }
 
-.dark { --background: oklch(0.145 0 0); --foreground: oklch(0.985 0 0); --card: oklch(0.205 0 0); --card-foreground: oklch(0.985 0 0); --popover: oklch(0.205 0 0); --popover-foreground: oklch(0.985 0 0); --primary: oklch(0.922 0 0); --primary-foreground: oklch(0.205 0 0); --secondary: oklch(0.269 0 0); --secondary-foreground: oklch(0.985 0 0); --muted: oklch(0.269 0 0); --muted-foreground: oklch(0.708 0 0); --accent: oklch(0.269 0 0); --accent-foreground: oklch(0.985 0 0); --destructive: oklch(0.704 0.191 22.216); --border: oklch(1 0 0 / 10%); --input: oklch(1 0 0 / 15%); --ring: oklch(0.556 0 0); --chart-1: oklch(0.87 0 0); --chart-2: oklch(0.556 0 0); --chart-3: oklch(0.439 0 0); --chart-4: oklch(0.371 0 0); --chart-5: oklch(0.269 0 0); --sidebar: oklch(0.205 0 0); --sidebar-foreground: oklch(0.985 0 0); --sidebar-primary: oklch(0.488 0.243 264.376); --sidebar-primary-foreground: oklch(0.985 0 0); --sidebar-accent: oklch(0.269 0 0); --sidebar-accent-foreground: oklch(0.985 0 0); --sidebar-border: oklch(1 0 0 / 10%); --sidebar-ring: oklch(0.556 0 0); }
+.dark {
+  /* ── Özel fintech renk paleti — koyu mod ── */
+  --c-bg:             #0D1117;
+  --c-card:           #161B22;
+  --c-border:         #2D333B;
+  --c-divider:        #1E2430;
+  --c-primary:        #6B9DC8;
+  --c-accent:         #5887AF;
+  --c-primary-soft:   #1A2230;
+  --c-primary-border: #273040;
+  --c-text-1:         #E6EDF3;
+  --c-text-2:         #8B949E;
+  --c-text-3:         #6E7681;
+  --c-bull:           #3FB950;
+  --c-bear:           #F85149;
+  --c-amber:          #D29922;
+  --c-orange:         #DB6D28;
+  --c-purple:         #A371F7;
+
+  /* shadcn token mapping — koyu mod */
+  --background:              #0D1117;
+  --foreground:              #E6EDF3;
+  --card:                    #161B22;
+  --card-foreground:         #E6EDF3;
+  --popover:                 #1C2128;
+  --popover-foreground:      #E6EDF3;
+  --primary:                 #6B9DC8;
+  --primary-foreground:      #FFFFFF;
+  --secondary:               #21262D;
+  --secondary-foreground:    #C9D1D9;
+  --muted:                   #1E2430;
+  --muted-foreground:        #8B949E;
+  --accent:                  #1A2230;
+  --accent-foreground:       #C9D1D9;
+  --destructive:             #F85149;
+  --border:                  #2D333B;
+  --input:                   #21262D;
+  --ring:                    #6B9DC8;
+  --sidebar:                 #161B22;
+  --sidebar-foreground:      #E6EDF3;
+  --sidebar-primary:         #6B9DC8;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent:          #1A2230;
+  --sidebar-accent-foreground: #C9D1D9;
+  --sidebar-border:          #2D333B;
+  --sidebar-ring:            #6B9DC8;
+  --chart-1:                 #6B9DC8;
+  --chart-2:                 #3FB950;
+  --chart-3:                 #D29922;
+  --chart-4:                 #F85149;
+  --chart-5:                 #A371F7;
+}
 
 @layer base {
   * {

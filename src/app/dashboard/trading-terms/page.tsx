@@ -4,6 +4,7 @@ import { CreateTermModal }   from '@/components/CreateTermModal'
 import { PageContent }       from '@/components/layout/PageContent'
 import { PageHeader }        from '@/components/layout/PageHeader'
 import { SectionCard }       from '@/components/layout/SectionCard'
+import { PlatformSubNav }    from '@/components/layout/PlatformSubNav'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { checkPermission } from '@/lib/auth-utils'
@@ -22,8 +23,10 @@ export default async function TradingTermsPage() {
   const terms = await getTradingTerms()
 
   return (
+    <div className="flex flex-col h-full">
+    <PlatformSubNav />
     <PageContent>
-      <PageHeader title="Trading Terms">
+      <PageHeader title="İşlem Koşulları">
         <CreateTermModal />
         <button className="text-[10px] font-semibold px-2.5 py-1 rounded bg-muted text-muted-foreground border border-border hover:bg-muted/80 transition-colors cursor-pointer">
           Export
@@ -120,5 +123,6 @@ export default async function TradingTermsPage() {
         </div>
       </SectionCard>
     </PageContent>
+    </div>
   )
 }

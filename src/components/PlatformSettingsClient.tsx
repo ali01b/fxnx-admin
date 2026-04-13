@@ -77,23 +77,21 @@ function SettingRowLive({ setting, inputType, liveValue, onLiveChange, preview }
               onLiveChange(e.target.value)
               if (status !== 'idle') setStatus('idle')
             }}
-            className={inputCls}
-            style={{ width: inputType === 'number' ? '80px' : '130px' }}
+            className={`${inputCls} ${inputType === 'number' ? 'w-20' : 'w-32'}`}
           />
           <button
             onClick={handleSave}
             disabled={status === 'saving'}
-            className="text-[10px] font-semibold px-3 py-1.5 rounded text-white border-none cursor-pointer disabled:opacity-50"
-            style={{ background: 'var(--c-primary)' }}
+            className="text-[10px] font-semibold px-3 py-1.5 rounded bg-primary text-primary-foreground border-none cursor-pointer disabled:opacity-50"
           >
             {status === 'saving' ? 'Kaydediliyor...' : 'Kaydet'}
           </button>
-          {status === 'saved' && <span className="text-[10px] font-semibold" style={{ color: 'var(--c-bull)' }}>Kaydedildi</span>}
-          {status === 'error' && <span className="text-[10px] font-semibold" style={{ color: 'var(--c-bear)' }}>{errorMsg || 'Hata oluştu'}</span>}
+          {status === 'saved' && <span className="text-[10px] font-semibold text-[color:var(--c-bull)]">Kaydedildi</span>}
+          {status === 'error' && <span className="text-[10px] font-semibold text-destructive">{errorMsg || 'Hata oluştu'}</span>}
         </div>
       </td>
       <td className="px-3 py-2 border-b border-border align-middle">
-        <span className="text-[11px] font-mono font-semibold" style={{ color: 'var(--c-primary)' }}>
+        <span className="text-[11px] font-mono font-semibold text-primary">
           {preview ?? <span className="text-muted-foreground/30">—</span>}
         </span>
       </td>
@@ -162,32 +160,20 @@ function ToggleRow({ setting }: { setting: PlatformSetting }) {
         <div className="text-[9px] text-muted-foreground/40 font-mono mt-0.5">{setting.key}</div>
       </div>
       <div className="flex items-center gap-3 flex-shrink-0">
-        {status === 'saved' && <span className="text-[10px] font-semibold" style={{ color: 'var(--c-bull)' }}>Kaydedildi</span>}
-        {status === 'error' && <span className="text-[10px] font-semibold" style={{ color: 'var(--c-bear)' }}>Hata</span>}
+        {status === 'saved' && <span className="text-[10px] font-semibold text-[color:var(--c-bull)]">Kaydedildi</span>}
+        {status === 'error' && <span className="text-[10px] font-semibold text-destructive">Hata</span>}
         <button
           onClick={toggle}
           disabled={status === 'saving'}
-          className="relative border-none cursor-pointer disabled:cursor-not-allowed"
-          style={{
-            width: 44, height: 24, borderRadius: 99,
-            background: activeColor,
-            transition: 'background 0.2s',
-          }}
+          className="relative border-none cursor-pointer disabled:cursor-not-allowed flex-shrink-0"
+          style={{ width: 44, height: 24, borderRadius: 99, background: activeColor, transition: 'background 0.2s' }}
         >
           <span
-            className="absolute top-[3px] rounded-full bg-white"
-            style={{
-              width: 18, height: 18,
-              left: enabled ? 23 : 3,
-              boxShadow: '0 1px 4px rgba(0,0,0,0.20)',
-              transition: 'left 0.2s',
-            }}
+            className="absolute top-[3px] rounded-full bg-card"
+            style={{ width: 18, height: 18, left: enabled ? 23 : 3, boxShadow: '0 1px 4px rgba(0,0,0,0.20)', transition: 'left 0.2s' }}
           />
         </button>
-        <span
-          className="text-[11px] font-bold min-w-[36px]"
-          style={{ color: activeColor }}
-        >
+        <span className="text-[11px] font-bold min-w-[36px]" style={{ color: activeColor }}>
           {isDanger ? (enabled ? 'Aktif' : 'Kapalı') : (enabled ? 'Açık' : 'Kapalı')}
         </span>
       </div>
@@ -202,14 +188,6 @@ const WEEKDAYS = [
   { num: 4, short: 'Per' }, { num: 5, short: 'Cum' }, { num: 6, short: 'Cmt' },
   { num: 7, short: 'Paz' },
 ]
-
-const CAT_COLORS: Record<string, string> = {
-  bist:      '#28a745',
-  forex:     '#7C3AED',
-  crypto:    '#F97316',
-  commodity: '#F59E0B',
-  index:     'var(--c-primary)',
-}
 
 function MarketHoursRow({ row }: { row: MarketHours }) {
   const [enabled,   setEnabled]   = useState(row.is_enabled)
@@ -239,54 +217,31 @@ function MarketHoursRow({ row }: { row: MarketHours }) {
     if (!result.error) setTimeout(() => setStatus('idle'), 2500)
   }
 
-  const color = CAT_COLORS[row.category] ?? 'var(--c-primary)'
-
   return (
-    <div
-      className="border border-border rounded-lg overflow-hidden"
-      style={{ background: enabled ? 'var(--c-card)' : 'var(--c-muted)', opacity: enabled ? 1 : 0.75 }}
-    >
+    <div className="border border-border rounded-lg overflow-hidden" style={{ opacity: enabled ? 1 : 0.65 }}>
       {/* Header */}
-      <div
-        className="flex items-center justify-between px-4 py-2.5 border-b border-border"
-        style={{ background: `${color}08` }}
-      >
+      <div className="flex items-center justify-between px-4 py-2.5 border-b border-border bg-muted/40">
         <div className="flex items-center gap-2.5">
-          <span
-            className="text-[10px] font-bold uppercase tracking-wide px-2.5 py-1 rounded"
-            style={{ color, background: `${color}18` }}
-          >
+          <span className="text-[10px] font-bold uppercase tracking-wide px-2.5 py-1 rounded bg-primary/10 text-primary">
             {row.category}
           </span>
           <span className="text-[12px] font-semibold text-foreground">{row.label}</span>
         </div>
         <div className="flex items-center gap-2.5">
-          {status === 'saved' && <span className="text-[10px] font-semibold" style={{ color: 'var(--c-bull)' }}>Kaydedildi ✓</span>}
-          {status === 'error' && <span className="text-[10px] font-semibold" style={{ color: 'var(--c-bear)' }}>Hata</span>}
+          {status === 'saved' && <span className="text-[10px] font-semibold text-[color:var(--c-bull)]">Kaydedildi ✓</span>}
+          {status === 'error' && <span className="text-[10px] font-semibold text-destructive">Hata</span>}
           <button
             onClick={() => { setEnabled(e => !e); setStatus('idle') }}
             title={enabled ? 'Kapat' : 'Aç'}
             className="relative border-none cursor-pointer flex-shrink-0"
-            style={{
-              width: 36, height: 20, borderRadius: 99,
-              background: enabled ? color : 'var(--c-border)',
-              transition: 'background 0.2s',
-            }}
+            style={{ width: 36, height: 20, borderRadius: 99, background: enabled ? 'var(--c-primary)' : 'var(--c-border)', transition: 'background 0.2s' }}
           >
             <span
-              className="absolute top-[2px] rounded-full bg-white"
-              style={{
-                width: 16, height: 16,
-                left: enabled ? 18 : 2,
-                boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
-                transition: 'left 0.2s',
-              }}
+              className="absolute top-[2px] rounded-full bg-card"
+              style={{ width: 16, height: 16, left: enabled ? 18 : 2, boxShadow: '0 1px 3px rgba(0,0,0,0.2)', transition: 'left 0.2s' }}
             />
           </button>
-          <span
-            className="text-[10px] font-bold min-w-[30px]"
-            style={{ color: enabled ? color : 'var(--c-text-3)' }}
-          >
+          <span className={`text-[10px] font-bold min-w-[30px] ${enabled ? 'text-primary' : 'text-muted-foreground'}`}>
             {enabled ? 'Açık' : 'Kapalı'}
           </span>
         </div>
@@ -342,8 +297,8 @@ function MarketHoursRow({ row }: { row: MarketHours }) {
                   disabled={!enabled}
                   className="w-8 h-8 rounded-full border-none text-[9px] font-bold cursor-pointer disabled:cursor-not-allowed transition-all"
                   style={{
-                    background: active ? color : 'var(--c-border)',
-                    color:      active ? 'white' : 'var(--c-text-3)',
+                    background: active ? 'var(--c-primary)' : 'var(--c-border)',
+                    color:      active ? 'var(--c-card)'    : 'var(--c-text-3)',
                   }}
                 >
                   {short}
@@ -358,8 +313,7 @@ function MarketHoursRow({ row }: { row: MarketHours }) {
           <button
             onClick={save}
             disabled={status === 'saving'}
-            className="text-[11px] font-semibold px-4 py-1.5 rounded text-white border-none cursor-pointer disabled:opacity-60"
-            style={{ background: color }}
+            className="text-[11px] font-semibold px-4 py-1.5 rounded bg-primary text-primary-foreground border-none cursor-pointer disabled:opacity-60"
           >
             {status === 'saving' ? 'Kaydediliyor...' : 'Kaydet'}
           </button>
@@ -413,19 +367,17 @@ function SettingRow({ setting }: { setting: PlatformSetting }) {
           <input
             value={value}
             onChange={(e) => { setValue(e.target.value); if (status !== 'idle') setStatus('idle') }}
-            className={inputCls}
-            style={{ width: '130px' }}
+            className={`${inputCls} w-32`}
           />
           <button
             onClick={handleSave}
             disabled={status === 'saving'}
-            className="text-[10px] font-semibold px-3 py-1.5 rounded text-white border-none cursor-pointer disabled:opacity-50"
-            style={{ background: 'var(--c-primary)' }}
+            className="text-[10px] font-semibold px-3 py-1.5 rounded bg-primary text-primary-foreground border-none cursor-pointer disabled:opacity-50"
           >
             {status === 'saving' ? 'Kaydediliyor...' : 'Kaydet'}
           </button>
-          {status === 'saved' && <span className="text-[10px] font-semibold" style={{ color: 'var(--c-bull)' }}>Kaydedildi</span>}
-          {status === 'error' && <span className="text-[10px] font-semibold" style={{ color: 'var(--c-bear)' }}>{errorMsg || 'Hata'}</span>}
+          {status === 'saved' && <span className="text-[10px] font-semibold text-[color:var(--c-bull)]">Kaydedildi</span>}
+          {status === 'error' && <span className="text-[10px] font-semibold text-destructive">{errorMsg || 'Hata'}</span>}
         </div>
       </td>
       <td className="px-3 py-2 border-b border-border align-middle">

@@ -1,8 +1,9 @@
 import { getPlatformSettings, getMarketHours } from '@/actions/platform-settings'
 import { PlatformSettingsClient } from '@/components/PlatformSettingsClient'
-import { createClient } from '@/lib/supabase/server'
-import { checkPermission } from '@/lib/auth-utils'
-import { redirect } from 'next/navigation'
+import { PlatformSubNav }         from '@/components/layout/PlatformSubNav'
+import { createClient }           from '@/lib/supabase/server'
+import { checkPermission }        from '@/lib/auth-utils'
+import { redirect }               from 'next/navigation'
 
 export default async function PlatformSettingsPage() {
   const supabase = await createClient()
@@ -18,19 +19,11 @@ export default async function PlatformSettingsPage() {
   ])
 
   return (
-    <div style={{ padding: '8px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-
-      <div style={{
-        background: 'white', border: '1px solid #dde2e9',
-        padding: '6px 10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      }}>
-        <span style={{ fontSize: '13px', fontWeight: 700, color: '#2d3748', letterSpacing: '0.5px' }}>
-          PLATFORM AYARLARI
-        </span>
+    <div className="flex flex-col h-full">
+      <PlatformSubNav />
+      <div className="flex-1 overflow-auto p-2">
+        <PlatformSettingsClient settings={settings} marketHours={marketHours} />
       </div>
-
-      <PlatformSettingsClient settings={settings} marketHours={marketHours} />
-
     </div>
   )
 }

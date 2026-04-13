@@ -823,7 +823,7 @@ export function DashboardClient({ accounts: initialAccounts, openPositions: init
           onClick={closeDetail}
         />
         {/* Modal */}
-        <div className="relative w-full max-w-[1000px] h-[90vh] bg-card border border-border rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+        <div className="relative w-full max-w-[1260px] h-[90vh] bg-card border border-border rounded-2xl shadow-2xl flex flex-col overflow-hidden">
           {detailLoading || !detailData ? (
             <div className="flex-1 flex items-center justify-center">
               <div className="flex flex-col items-center gap-3">

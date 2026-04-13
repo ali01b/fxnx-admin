@@ -59,7 +59,7 @@ export function SecurityTab({ account, onRefresh }: Props) {
   }
 
   return (
-    <div className="p-5 space-y-5 bg-card min-h-full">
+    <div className="p-5 space-y-5 min-h-full">
 
       {/* ── Feedback bar ───────────────────────────────────────────────── */}
       {feedback && (
@@ -79,15 +79,15 @@ export function SecurityTab({ account, onRefresh }: Props) {
       )}
 
       {/* ── User info ──────────────────────────────────────────────────── */}
-      <section>
-        <div className="flex items-center pb-1.5 mb-4 border-b border-border">
-          <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-            User Info
+      <section className="bg-card border border-border rounded-xl p-4">
+        <div className="flex items-center pb-2 mb-3 border-b border-border">
+          <span className="text-[11px] font-semibold text-muted-foreground tracking-wide">
+            Kullanıcı Bilgileri
           </span>
         </div>
         <div className="grid grid-cols-2 gap-x-6 gap-y-4">
-          <FieldDisplay label="User ID"        value={profileId || '—'}                        mono />
-          <FieldDisplay label="Profile Status" value={profile?.status?.toUpperCase() ?? '—'} />
+          <FieldDisplay label="Kullanıcı ID"   value={profileId || '—'}                        mono />
+          <FieldDisplay label="Profil Durumu" value={profile?.status?.toUpperCase() ?? '—'} />
           <FieldDisplay label="E-posta"        value={profile?.email ?? '—'} />
           <FieldDisplay label="Kayıt Tarihi"   value={fmtDt(profile?.created_at)} />
         </div>
@@ -95,13 +95,13 @@ export function SecurityTab({ account, onRefresh }: Props) {
 
       {/* ── Actions ────────────────────────────────────────────────────── */}
       <section>
-        <div className="flex items-center pb-1.5 mb-3 border-b border-border">
-          <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-            Actions
+        <div className="flex items-center pb-2 mb-3 border-b border-border">
+          <span className="text-[11px] font-semibold text-muted-foreground tracking-wide">
+            İşlemler
           </span>
         </div>
 
-        <div className="rounded-xl border border-border overflow-hidden divide-y divide-border">
+        <div className="rounded-xl border border-border overflow-hidden divide-y divide-border bg-card">
 
           {/* Reset Password */}
           <div className="flex items-center gap-4 px-4 py-3.5 bg-card hover:bg-muted/30 transition-colors">
@@ -122,7 +122,7 @@ export function SecurityTab({ account, onRefresh }: Props) {
               disabled={loading === 'reset'}
               className={`${btnSecondary} disabled:opacity-50 flex-shrink-0`}
             >
-              {loading === 'reset' ? 'Gönderiliyor…' : 'Reset Password'}
+              {loading === 'reset' ? 'Gönderiliyor…' : 'E-posta Gönder'}
             </button>
           </div>
 
@@ -145,7 +145,7 @@ export function SecurityTab({ account, onRefresh }: Props) {
               disabled={loading === '2fa'}
               className={`${btnSecondary} disabled:opacity-50 flex-shrink-0`}
             >
-              {loading === '2fa' ? 'İşleniyor…' : 'Disable 2FA'}
+              {loading === '2fa' ? 'İşleniyor…' : '2FA Kaldır'}
             </button>
           </div>
 
@@ -187,7 +187,7 @@ export function SecurityTab({ account, onRefresh }: Props) {
                   onClick={handleSuspend}
                   disabled={loading === 'suspend'}
                   className={`${btnPrimary} disabled:opacity-50`}
-                  style={{ background: isSuspended ? 'var(--c-bull)' : 'var(--c-bear)' }}
+                  style={{ background: isSuspended ? 'var(--c-bull)' : 'var(--c-bear)', color: '#fff' }}
                 >
                   {loading === 'suspend' ? 'İşleniyor…' : 'Onayla'}
                 </button>
@@ -196,13 +196,13 @@ export function SecurityTab({ account, onRefresh }: Props) {
               <button
                 onClick={() => setConfirmSuspend(true)}
                 disabled={loading === 'suspend'}
-                className={`${isSuspended ? btnSecondary : btnDanger} disabled:opacity-50 flex-shrink-0`}
+                className={`disabled:opacity-50 flex-shrink-0 inline-flex items-center justify-center gap-1.5 h-8 px-3.5 rounded-lg text-[12px] font-semibold cursor-pointer transition-all active:scale-[0.97] border`}
                 style={isSuspended
-                  ? { borderColor: 'var(--c-bull)', color: 'var(--c-bull)' }
-                  : undefined
+                  ? { borderColor: 'color-mix(in srgb, var(--c-bull) 50%, transparent)', color: 'var(--c-bull)', background: 'color-mix(in srgb, var(--c-bull) 10%, transparent)' }
+                  : { borderColor: 'color-mix(in srgb, var(--c-bear) 50%, transparent)', color: 'var(--c-bear)', background: 'transparent' }
                 }
               >
-                {isSuspended ? 'Aktif Et' : 'Suspend Account'}
+                {isSuspended ? 'Aktif Et' : 'Askıya Al'}
               </button>
             )}
           </div>

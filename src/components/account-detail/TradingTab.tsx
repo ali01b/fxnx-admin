@@ -1,26 +1,27 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { assignTradingTerm, setTradingPermission, adjustBalance, updateAccountStatus } from '@/actions/accounts'
 import { closeAllPositions } from '@/actions/positions'
+import { useQuoteStore, toYahooSymbol, type QuoteItem } from '@/stores/quoteStore'
 import {
   AccountDetail, TradingTerm, Position, Transaction, TermInstrument,
   FinCell, SectionHeader, Divider,
   fmt2, fmt4, fmtDt, currencySymbol,
-  fieldCls, btnPrimary, btnSecondary, btnGhost, btnSm, STATUS_COLOR,
+  fieldCls, selectCls, btnPrimary, btnSecondary, btnGhost, btnSm, STATUS_COLOR,
 } from './shared'
 import { PositionModal, PositionPatch } from './PositionModal'
 
 type PosTab    = 'open' | 'pending' | 'closed' | 'transactions'
 type ActionKey = 'deposit' | 'withdrawal' | 'credit_in' | 'credit_out' | 'zero_balance'
 
-const ACTION_BUTTONS: { key: ActionKey; label: string; color: string }[] = [
-  { key: 'deposit',      label: 'Deposit',      color: 'var(--c-bull)'    },
-  { key: 'withdrawal',   label: 'Withdraw',     color: 'var(--c-bear)'    },
-  { key: 'credit_in',    label: 'Credit In',    color: 'var(--c-primary)' },
-  { key: 'credit_out',   label: 'Credit Out',   color: 'var(--c-purple)'  },
-  { key: 'zero_balance', label: 'Zero Balance', color: 'var(--c-text-2)'  },
+const ACTION_BUTTONS: { key: ActionKey; label: string }[] = [
+  { key: 'deposit',      label: 'Para Yatır'  },
+  { key: 'withdrawal',   label: 'Para Çek'    },
+  { key: 'credit_in',    label: 'Kredi Gir'   },
+  { key: 'credit_out',   label: 'Kredi Çıkar' },
+  { key: 'zero_balance', label: 'Sıfırla'     },
 ]
 
 interface Props {
@@ -43,16 +44,66 @@ export function TradingTab({ account, positions, transactions, allTerms, termIns
   const [showTermsEdit, setShowTermsEdit] = useState(false)
   const [activeAction,  setActiveAction]  = useState<ActionKey | null>(null)
 
-  // Position modal state — snapshot prices at open time to prevent re-renders from breaking modal
+  // DB sembolü → Yahoo sembolü haritası
+  const dbToYahoo = useMemo(
+    () => Object.fromEntries(termInstruments.map((i) => [i.symbol, toYahooSymbol(i.symbol, i.category)])),
+    [termInstruments]
+  )
+
+  // Store'dan direkt oku — her WS tick'te quotes yeni referans → garantili re-render
+  const storeQuotes = useQuoteStore((s) => s.quotes)
+  const getPrice = (dbSym: string): number | undefined =>
+    storeQuotes[dbToYahoo[dbSym] ?? dbSym]?.last
+
+  useEffect(() => {
+    if (termInstruments.length === 0) return
+
+    const yahooSymbols = Object.values(dbToYahoo)
+    const store = useQuoteStore.getState()
+
+    // Subscribe: GlobalSidebar zaten tüm açık pozisyonlara subscribe ediyor,
+    // ama bu hesaba ait semboller listede yoksa (yeni hesap / farklı term) burada da subscribe et
+    store.subscribe(yahooSymbols)
+
+    // REST snapshot: store'da henüz yoksa hemen fiyatları doldur
+    const missing = yahooSymbols.filter((s) => store.quotes[s] == null)
+    if (missing.length > 0) {
+      fetch(`https://api.iletisimacar.com/api/yf/quote?symbols=${missing.join(',')}`)
+        .then(r => r.json())
+        .then((resp: { success: boolean; data?: Array<Record<string, unknown>> }) => {
+          if (!resp.success || !Array.isArray(resp.data)) return
+          const seed: Record<string, QuoteItem> = {}
+          for (const q of resp.data) {
+            const sym = q.symbol as string
+            if (!sym || q.price == null) continue
+            seed[sym] = { symbol: sym, last: Number(q.price), change: Number(q.change ?? 0) }
+          }
+          useQuoteStore.getState().seed(seed)
+        })
+        .catch(() => {})
+    }
+
+    return () => store.unsubscribe(yahooSymbols)
+  }, [termInstruments, dbToYahoo])
+
+  // Position modal state — fiyatları açılış anında snapshot'la, re-render'dan korunmak için
   const [modalPrices, setModalPrices] = useState<Record<string, number>>({})
   const [showNewPos,  setShowNewPos]  = useState(false)
   const [editingPos,  setEditingPos]  = useState<Position | null>(null)
   const [closingPos,  setClosingPos]  = useState<Position | null>(null)
   const [closingAll,  setClosingAll]  = useState(false)
 
-  const openNewPos  = ()               => { setModalPrices({ ...prices }); setShowNewPos(true) }
-  const openEditPos = (p: Position)    => { setModalPrices({ ...prices }); setEditingPos(p) }
-  const openClosePos = (p: Position)   => { setModalPrices({ ...prices }); setClosingPos(p) }
+  const snapPrices = () => {
+    const snap: Record<string, number> = {}
+    for (const dbSym of Object.keys(dbToYahoo)) {
+      const p = getPrice(dbSym)
+      if (p != null) snap[dbSym] = p
+    }
+    return snap
+  }
+  const openNewPos   = ()            => { setModalPrices(snapPrices()); setShowNewPos(true) }
+  const openEditPos  = (p: Position) => { setModalPrices(snapPrices()); setEditingPos(p) }
+  const openClosePos = (p: Position) => { setModalPrices(snapPrices()); setClosingPos(p) }
 
   // Auto-open edit modal if a specific position ID was passed (shortcut from dashboard)
   useEffect(() => {
@@ -82,32 +133,15 @@ export function TradingTab({ account, positions, transactions, allTerms, termIns
   // ── Live data ─────────────────────────────────────────────────────
   const [liveBalance,   setLiveBalance]   = useState(Number(account.balance ?? 0))
   const [livePositions, setLivePositions] = useState(positions.filter((p) => p.status === 'open'))
-  const [prices,        setPrices]        = useState<Record<string, number>>({})
   const profileId = profile?.id
 
-  const pollPrices = useCallback(async () => {
-    try {
-      const res  = await fetch('/api/quotes', { cache: 'no-store' })
-      if (!res.ok) return
-      const json = await res.json()
-      const items: any[] = Array.isArray(json) ? json : (json.items ?? [])
-      const map: Record<string, number> = {}
-      for (const item of items) {
-        if (item.symbol && item.last != null) map[item.symbol] = Number(item.last)
-      }
-      setPrices(map)
-    } catch { /* ignore */ }
-  }, [])
-
   useEffect(() => {
-    pollPrices()
-    const priceTimer = setInterval(pollPrices, 3000)
-    const supabase   = createClient()
+    const supabase = createClient()
 
     const fetchOpenPositions = async () => {
       const { data } = await supabase
         .from('positions')
-        .select('id, symbol, qty, avg_cost, side, leverage, used_margin, commission, swap, status, close_price, pnl, opened_at, closed_at')
+        .select('id, symbol, qty, avg_cost, side, leverage, used_margin, commission, swap, status, close_price, pnl, opened_at, closed_at, display_qty, display_cost')
         .eq('profile_id', profileId)
         .eq('status', 'open')
       if (data) setLivePositions(data as any)
@@ -127,19 +161,20 @@ export function TradingTab({ account, positions, transactions, allTerms, termIns
       .subscribe()
 
     return () => {
-      clearInterval(priceTimer)
       supabase.removeChannel(posCh)
       supabase.removeChannel(accCh)
     }
-  }, [account.id, profileId, pollPrices])
+  }, [account.id, profileId])
 
   // ── Derived live calculations ─────────────────────────────────────
   const balance = liveBalance
   let liveFloatingPnl = 0
   for (const pos of livePositions) {
-    const price = prices[(pos as any).symbol] ?? Number((pos as any).avg_cost)
-    const qty   = Math.abs(Number((pos as any).qty))
-    liveFloatingPnl += (price - Number((pos as any).avg_cost)) * qty
+    const price  = getPrice((pos as any).symbol) ?? Number((pos as any).avg_cost)
+    const qty    = Math.abs(Number((pos as any).qty))
+    const avg    = Number((pos as any).avg_cost)
+    const isLong = (pos as any).side !== 'sell'
+    liveFloatingPnl += (isLong ? price - avg : avg - price) * qty
   }
   const openPnl = liveFloatingPnl
 
@@ -151,15 +186,13 @@ export function TradingTab({ account, positions, transactions, allTerms, termIns
   const totalSwap       = filteredPositions.reduce((s, p) => s + Number(p.swap       ?? 0), 0)
   const totalCommission = filteredPositions.reduce((s, p) => s + Number(p.commission ?? 0), 0)
 
-  const selectCls = `${fieldCls} cursor-pointer`
-
   const handlePositionSaved = (patch: PositionPatch) => {
     if ('isNew' in patch && patch.isNew) {
       // New position: targeted re-fetch (need server-assigned ID)
       const supabase = createClient()
       supabase
         .from('positions')
-        .select('id, symbol, qty, avg_cost, side, leverage, used_margin, commission, swap, status, close_price, pnl, opened_at, closed_at')
+        .select('id, symbol, qty, avg_cost, side, leverage, used_margin, commission, swap, status, close_price, pnl, opened_at, closed_at, display_qty, display_cost')
         .eq('profile_id', profileId)
         .order('opened_at', { ascending: false })
         .limit(200)
@@ -216,15 +249,15 @@ export function TradingTab({ account, positions, transactions, allTerms, termIns
             right={
               <button
                 className={showTermsEdit
-                  ? `${btnSecondary} border-[var(--c-primary)] text-[var(--c-primary)] bg-[var(--c-primary-soft)]`
+                  ? `${btnSecondary} border-primary text-primary`
                   : btnSecondary}
                 onClick={() => setShowTermsEdit((v) => !v)}
               >
-                Edit Trading Terms
+                İşlem Koşullarını Düzenle
               </button>
             }
           >
-            Trading
+            İşlem Ayarları
           </SectionHeader>
         </div>
 
@@ -242,7 +275,7 @@ export function TradingTab({ account, positions, transactions, allTerms, termIns
               className="flex gap-2 items-center"
             >
               <input type="hidden" name="account_id" value={account.id} />
-              <span className="text-[10px] text-muted-foreground font-semibold whitespace-nowrap">Trading Grubu:</span>
+              <span className="text-[10px] text-muted-foreground font-semibold whitespace-nowrap">İşlem Grubu:</span>
               <select name="trading_terms_id" defaultValue={term?.id ?? ''} className={`${selectCls} flex-1`}>
                 <option value="">— Yok —</option>
                 {allTerms.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
@@ -256,15 +289,20 @@ export function TradingTab({ account, positions, transactions, allTerms, termIns
         {/* Status / Terms / Tradability row */}
         <div className="px-3 py-2 flex items-center gap-3 flex-wrap">
           <div className="flex items-center gap-1.5">
-            <span className="text-[10px] text-muted-foreground font-semibold">State:</span>
+            <span className="text-[10px] text-muted-foreground font-semibold">Durum:</span>
             <select
               value={localStatus}
               className={selectCls}
               style={{ color: STATUS_COLOR[localStatus] ?? 'var(--c-text-1)', fontWeight: 700 }}
               onChange={(e) => setLocalStatus(e.target.value)}
             >
-              {['active','suspended','closed','pending'].map((s) => (
-                <option key={s} value={s} style={{ color: STATUS_COLOR[s] }}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+              {[
+                { value: 'active',    label: 'Aktif'    },
+                { value: 'suspended', label: 'Askıda'   },
+                { value: 'closed',    label: 'Kapalı'   },
+                { value: 'pending',   label: 'Bekliyor' },
+              ].map(({ value, label }) => (
+                <option key={value} value={value} style={{ color: STATUS_COLOR[value] }}>{label}</option>
               ))}
             </select>
             {localStatus !== savedStatus && (
@@ -278,8 +316,8 @@ export function TradingTab({ account, positions, transactions, allTerms, termIns
                     await updateAccountStatus(fd)
                   }}
                   className={`${btnPrimary} ${btnSm}`}
-                >Save</button>
-                <button onClick={() => setLocalStatus(savedStatus)} className={`${btnGhost} ${btnSm}`}>Cancel</button>
+                >Kaydet</button>
+                <button onClick={() => setLocalStatus(savedStatus)} className={`${btnGhost} ${btnSm}`}>İptal</button>
               </>
             )}
           </div>
@@ -287,7 +325,7 @@ export function TradingTab({ account, positions, transactions, allTerms, termIns
           <Divider />
 
           <div className="flex items-center gap-1.5">
-            <span className="text-[10px] text-muted-foreground font-semibold">Trading Terms:</span>
+            <span className="text-[10px] text-muted-foreground font-semibold">İşlem Koşulları:</span>
             <span
               className="text-[10px] font-bold rounded px-2 py-0.5 transition-all"
               style={{
@@ -296,22 +334,22 @@ export function TradingTab({ account, positions, transactions, allTerms, termIns
                 border:     '1px solid var(--c-primary-border)',
               }}
             >
-              {localTermName ?? '— None —'}
+              {localTermName ?? '— Yok —'}
             </span>
           </div>
 
           <Divider />
 
           <div className="flex items-center gap-1.5">
-            <span className="text-[10px] text-muted-foreground font-semibold">Tradability:</span>
+            <span className="text-[10px] text-muted-foreground font-semibold">İşlem İzni:</span>
             <select
               value={localTradability ? 'true' : 'false'}
               className={selectCls}
               style={{ color: localTradability ? 'var(--c-bull)' : 'var(--c-bear)', fontWeight: 700 }}
               onChange={(e) => setLocalTradability(e.target.value === 'true')}
             >
-              <option value="true">Full Trade</option>
-              <option value="false">No Trade</option>
+              <option value="true">Açık</option>
+              <option value="false">Kapalı</option>
             </select>
             {localTradability !== savedTradability && (
               <>
@@ -324,8 +362,8 @@ export function TradingTab({ account, positions, transactions, allTerms, termIns
                     await setTradingPermission(fd)
                   }}
                   className={`${btnPrimary} ${btnSm}`}
-                >Save</button>
-                <button onClick={() => setLocalTradability(savedTradability)} className={`${btnGhost} ${btnSm}`}>Cancel</button>
+                >Kaydet</button>
+                <button onClick={() => setLocalTradability(savedTradability)} className={`${btnGhost} ${btnSm}`}>İptal</button>
               </>
             )}
           </div>
@@ -338,19 +376,17 @@ export function TradingTab({ account, positions, transactions, allTerms, termIns
         <SectionHeader
           right={
             <div className="flex gap-1">
-              {ACTION_BUTTONS.map(({ key, label, color }) => {
+              {ACTION_BUTTONS.map(({ key, label }) => {
                 const isActive = activeAction === key
                 return (
                   <button
                     key={key}
                     onClick={() => setActiveAction(isActive ? null : key)}
-                    className={`${btnSm} inline-flex items-center justify-center gap-1.5 rounded-md font-semibold cursor-pointer transition-all active:scale-[0.97] whitespace-nowrap`}
-                    style={{
-                      background:  isActive ? color : 'transparent',
-                      border:      `1px solid ${color}`,
-                      color:       isActive ? 'white' : color,
-                      height:      '24px',
-                    }}
+                    className={`${btnSm} inline-flex items-center justify-center gap-1 rounded-md text-[10px] font-medium cursor-pointer transition-all active:scale-[0.97] whitespace-nowrap border ${
+                      isActive
+                        ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                        : 'bg-transparent text-muted-foreground border-border hover:bg-muted hover:text-foreground'
+                    }`}
                   >
                     {label}
                   </button>
@@ -359,7 +395,7 @@ export function TradingTab({ account, positions, transactions, allTerms, termIns
             </div>
           }
         >
-          Live Financial Information
+          Canlı Finansal Bilgiler
         </SectionHeader>
         </div>
 
@@ -377,8 +413,8 @@ export function TradingTab({ account, positions, transactions, allTerms, termIns
                 <span className="text-[11px] text-muted-foreground">
                   Bu işlem bakiyeyi <strong>{ccy}0.00</strong> yapacak. Onaylıyor musunuz?
                 </span>
-                <button type="submit" className={btnSecondary}>Confirm</button>
-                <button type="button" onClick={() => setActiveAction(null)} className={btnGhost}>Cancel</button>
+                <button type="submit" className={btnSecondary}>Onayla</button>
+                <button type="button" onClick={() => setActiveAction(null)} className={btnGhost}>İptal</button>
               </form>
             ) : (
               <form
@@ -391,24 +427,20 @@ export function TradingTab({ account, positions, transactions, allTerms, termIns
                   activeAction === 'credit_out' ? 'withdrawal' : activeAction
                 } />
                 <span className="text-[10px] font-bold text-foreground whitespace-nowrap min-w-[70px]">
-                  {activeAction === 'deposit'    ? 'Deposit'    :
-                   activeAction === 'withdrawal' ? 'Withdraw'   :
-                   activeAction === 'credit_in'  ? 'Credit In'  : 'Credit Out'} Amount:
+                  {activeAction === 'deposit'    ? 'Para Yatır'  :
+                   activeAction === 'withdrawal' ? 'Para Çek'    :
+                   activeAction === 'credit_in'  ? 'Kredi Gir'   : 'Kredi Çıkar'} Tutarı:
                 </span>
                 <div className="relative flex items-center">
-                  <span className="absolute left-2 text-[10px] text-muted-foreground font-mono">{ccy}</span>
+                  <span className="absolute left-2.5 text-[11px] text-muted-foreground">{ccy}</span>
                   <input name="amount" type="number" step="0.01" placeholder="0.00" autoFocus
-                    className={`${fieldCls} w-28 text-right font-mono pl-6`} />
+                    className={`${fieldCls} w-28 text-right tabular-nums pl-6`} />
                 </div>
-                <input name="note" placeholder="Note (optional)" className={`${fieldCls} flex-1`} />
-                <button
-                  type="submit"
-                  className={btnPrimary}
-                  style={{ background: activeAction === 'deposit' ? 'var(--c-bull)' : activeAction === 'withdrawal' ? 'var(--c-bear)' : activeAction === 'credit_in' ? 'var(--c-primary)' : 'var(--c-purple)' }}
-                >
-                  Save
+                <input name="note" placeholder="Not (isteğe bağlı)" className={`${fieldCls} flex-1`} />
+                <button type="submit" className={btnPrimary}>
+                  Kaydet
                 </button>
-                <button type="button" onClick={() => setActiveAction(null)} className={btnGhost}>Cancel</button>
+                <button type="button" onClick={() => setActiveAction(null)} className={btnGhost}>İptal</button>
               </form>
             )}
           </div>
@@ -431,16 +463,17 @@ export function TradingTab({ account, positions, transactions, allTerms, termIns
           <div className="flex items-center gap-0.5">
             {(['open', 'pending', 'closed', 'transactions'] as PosTab[]).map((t) => {
               const isActive = posTab === t
+              const tabLabels: Record<string, string> = { open: 'Açık', pending: 'Bekleyen', closed: 'Kapalı', transactions: 'İşlemler' }
               const label = t === 'transactions'
-                ? `Transactions${localTransactions.length > 0 ? ` (${localTransactions.length})` : ''}`
-                : `${t.charAt(0).toUpperCase() + t.slice(1)}${isActive ? ` (${filteredPositions.length})` : ''}`
+                ? `İşlemler${localTransactions.length > 0 ? ` (${localTransactions.length})` : ''}`
+                : `${tabLabels[t] ?? t}${isActive ? ` (${filteredPositions.length})` : ''}`
               return (
                 <button
                   key={t}
                   onClick={() => setPosTab(t)}
                   className={`h-6 px-2.5 rounded text-[10px] font-semibold transition-all cursor-pointer border-none ${
                     isActive
-                      ? 'bg-[var(--c-primary)] text-white shadow-sm'
+                      ? 'bg-primary text-primary-foreground shadow-sm'
                       : 'bg-transparent text-muted-foreground hover:bg-muted hover:text-foreground'
                   }`}
                 >
@@ -454,18 +487,16 @@ export function TradingTab({ account, positions, transactions, allTerms, termIns
               <>
                 <button
                   onClick={openNewPos}
-                  className={`${btnSm} inline-flex items-center justify-center gap-1 rounded-md font-semibold cursor-pointer transition-all active:scale-[0.97] border`}
-                  style={{ color: 'var(--c-bull)', borderColor: 'color-mix(in srgb, var(--c-bull) 40%, transparent)', background: 'color-mix(in srgb, var(--c-bull) 10%, transparent)', height: '24px' }}
+                  className={`${btnSm} inline-flex items-center justify-center gap-1 rounded-md text-[10px] font-medium cursor-pointer transition-all active:scale-[0.97] border border-border bg-transparent text-muted-foreground hover:bg-muted hover:text-foreground`}
                 >
-                  + New
+                  + Yeni
                 </button>
                 {posTab === 'open' && livePositions.length > 0 && (
                   <button
                     onClick={() => setClosingAll(true)}
-                    className={`${btnSm} inline-flex items-center justify-center gap-1 rounded-md font-semibold cursor-pointer transition-all active:scale-[0.97] border`}
-                    style={{ color: 'var(--c-bear)', borderColor: 'color-mix(in srgb, var(--c-bear) 40%, transparent)', background: 'transparent', height: '24px' }}
+                    className={`${btnSm} inline-flex items-center justify-center gap-1 rounded-md text-[10px] font-medium cursor-pointer transition-all active:scale-[0.97] border border-destructive/40 bg-transparent text-destructive hover:bg-destructive/10`}
                   >
-                    Close All
+                    Tümünü Kapat
                   </button>
                 )}
               </>
@@ -479,9 +510,9 @@ export function TradingTab({ account, positions, transactions, allTerms, termIns
             <table className="w-full text-[10px]">
               <thead className="sticky top-0 z-10">
                 <tr className="bg-muted border-b border-border">
-                  {['Date','Type','Source','Amount','Balance Before','Balance After','Note'].map((h) => (
+                  {['Tarih','Tür','Kaynak','Tutar','Önceki Bakiye','Sonraki Bakiye','Not'].map((h) => (
                     <th key={h} className={`px-2 py-1.5 font-bold text-muted-foreground uppercase tracking-wide whitespace-nowrap ${
-                      ['Amount','Balance Before','Balance After'].includes(h) ? 'text-right' : 'text-left'
+                      ['Tutar','Önceki Bakiye','Sonraki Bakiye'].includes(h) ? 'text-right' : 'text-left'
                     }`}>{h}</th>
                   ))}
                 </tr>
@@ -490,15 +521,15 @@ export function TradingTab({ account, positions, transactions, allTerms, termIns
                 {localTransactions.map((tx, i) => {
                   const isCredit = ['deposit','credit_in','correction'].includes(tx.type)
                   const sourceInfo =
-                    tx.source === 'system'       ? { label: 'System',  color: 'var(--c-primary)' } :
-                    tx.source === 'user_request' ? { label: 'Request', color: 'var(--c-amber)'   } :
+                    tx.source === 'system'       ? { label: 'Sistem',  color: 'var(--c-primary)' } :
+                    tx.source === 'user_request' ? { label: 'Talep',   color: 'var(--c-amber)'   } :
                                                    { label: 'Admin',   color: 'var(--c-purple)'  }
                   const typeLabel =
-                    tx.type === 'deposit'      ? 'Deposit'     :
-                    tx.type === 'withdrawal'   ? 'Withdrawal'  :
-                    tx.type === 'credit_in'    ? 'Credit In'   :
-                    tx.type === 'credit_out'   ? 'Credit Out'  :
-                    tx.type === 'zero_balance' ? 'Zero Balance': 'Correction'
+                    tx.type === 'deposit'      ? 'Para Yatırma'  :
+                    tx.type === 'withdrawal'   ? 'Para Çekme'    :
+                    tx.type === 'credit_in'    ? 'Kredi Girişi'  :
+                    tx.type === 'credit_out'   ? 'Kredi Çıkışı'  :
+                    tx.type === 'zero_balance' ? 'Sıfırlama'     : 'Düzeltme'
                   return (
                     <tr key={tx.id} className={`border-b border-border ${i % 2 === 1 ? 'bg-muted/20' : 'bg-card'}`}>
                       <td className="px-2 py-1 text-muted-foreground whitespace-nowrap">{fmtDt(tx.created_at)}</td>
@@ -513,14 +544,14 @@ export function TradingTab({ account, positions, transactions, allTerms, termIns
                           {sourceInfo.label}
                         </span>
                       </td>
-                      <td className="px-2 py-1 text-right font-mono font-bold"
+                      <td className="px-2 py-1 text-right tabular-nums font-bold"
                         style={{ color: isCredit ? 'var(--c-bull)' : 'var(--c-bear)' }}>
                         {isCredit ? '+' : '-'}{ccy}{fmt2(Number(tx.amount))}
                       </td>
-                      <td className="px-2 py-1 text-right font-mono text-muted-foreground">
+                      <td className="px-2 py-1 text-right tabular-nums text-muted-foreground">
                         {tx.balance_before != null ? `${ccy}${fmt2(Number(tx.balance_before))}` : '—'}
                       </td>
-                      <td className="px-2 py-1 text-right font-mono font-semibold text-foreground">
+                      <td className="px-2 py-1 text-right tabular-nums font-semibold text-foreground">
                         {tx.balance_after != null ? `${ccy}${fmt2(Number(tx.balance_after))}` : '—'}
                       </td>
                       <td className="px-2 py-1 text-muted-foreground max-w-[160px] overflow-hidden text-ellipsis whitespace-nowrap">
@@ -559,9 +590,10 @@ export function TradingTab({ account, positions, transactions, allTerms, termIns
               <tbody>
                 {filteredPositions.map((pos, i) => {
                   const isOpenPos    = pos.status === 'open'
-                  const currentPrice = isOpenPos ? (prices[(pos as any).symbol] ?? Number(pos.avg_cost)) : null
+                  const isLong       = (pos as any).side !== 'sell'
+                  const currentPrice = isOpenPos ? (getPrice((pos as any).symbol) ?? Number(pos.avg_cost)) : null
                   const floatPnl     = isOpenPos && currentPrice !== null
-                    ? (currentPrice - Number(pos.avg_cost)) * Number(pos.qty)
+                    ? (isLong ? currentPrice - Number(pos.avg_cost) : Number(pos.avg_cost) - currentPrice) * Math.abs(Number(pos.qty))
                     : null
                   const pnl          = isOpenPos ? (floatPnl ?? 0) : Number(pos.pnl ?? 0)
                   const swap         = Number(pos.swap       ?? 0)
@@ -570,34 +602,50 @@ export function TradingTab({ account, positions, transactions, allTerms, termIns
 
                   return (
                     <tr key={pos.id} className={`border-b border-border hover:bg-muted/30 ${i % 2 === 1 ? 'bg-muted/10' : 'bg-card'}`}>
-                      <td className="px-2 py-1 font-mono font-semibold text-primary">{pos.id.slice(0,8).toUpperCase()}</td>
+                      <td className="px-2 py-1 tabular-nums font-semibold text-primary text-[9px]">{pos.id.slice(0,8).toUpperCase()}</td>
                       <td className="px-2 py-1 font-bold text-foreground">{pos.symbol}</td>
                       <td className="px-2 py-1">
-                        <span className="font-bold" style={{ color: 'var(--c-bull)' }}>
-                          ALIŞ
+                        <span className="font-semibold text-[10px] px-1.5 py-0.5 rounded" style={isLong
+                          ? { color: 'var(--c-bull)', background: 'color-mix(in srgb, var(--c-bull) 12%, transparent)' }
+                          : { color: 'var(--c-bear)', background: 'color-mix(in srgb, var(--c-bear) 12%, transparent)' }}>
+                          {isLong ? 'ALIŞ' : 'SATIŞ'}
                         </span>
                       </td>
-                      <td className="px-2 py-1 text-right font-mono">{Number(pos.qty).toLocaleString('en-US')}</td>
-                      <td className="px-2 py-1 text-right font-mono">{fmt4(Number(pos.avg_cost))}</td>
-                      <td className="px-2 py-1 text-right font-mono" style={{ color: isOpenPos ? 'var(--c-primary)' : undefined }}>
+                      <td className="px-2 py-1 text-right tabular-nums">
+                        {Number(pos.qty).toLocaleString('tr-TR')}
+                        {(pos as any).display_qty != null && (
+                          <span className="ml-1 text-[9px] font-semibold" style={{ color: 'var(--c-amber)' }}>
+                            →{Number((pos as any).display_qty).toLocaleString('tr-TR')}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-2 py-1 text-right tabular-nums">
+                        {fmt4(Number(pos.avg_cost))}
+                        {(pos as any).display_cost != null && (
+                          <span className="ml-1 text-[9px] font-semibold" style={{ color: 'var(--c-amber)' }}>
+                            →{fmt4(Number((pos as any).display_cost))}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-2 py-1 text-right tabular-nums font-semibold" style={{ color: isOpenPos ? 'var(--c-primary)' : undefined }}>
                         {isOpenPos && currentPrice !== null
                           ? fmt4(currentPrice)
                           : pos.close_price ? fmt4(Number(pos.close_price)) : '—'}
                       </td>
-                      <td className="px-2 py-1 text-left font-mono text-muted-foreground">
+                      <td className="px-2 py-1 text-left tabular-nums text-muted-foreground">
                         {leverage > 1 ? `1:${leverage}` : '—'}
                       </td>
                       <td className="px-2 py-1 text-muted-foreground whitespace-nowrap">{fmtDt(pos.opened_at)}</td>
                       {posTab === 'closed' && (
                         <td className="px-2 py-1 text-muted-foreground whitespace-nowrap">{fmtDt(pos.closed_at)}</td>
                       )}
-                      <td className="px-2 py-1 text-right font-mono text-muted-foreground">
+                      <td className="px-2 py-1 text-right tabular-nums text-muted-foreground">
                         {swap !== 0 ? `${swap < 0 ? '-' : '+'}${ccy}${fmt2(Math.abs(swap))}` : '—'}
                       </td>
-                      <td className="px-2 py-1 text-right font-mono text-muted-foreground">
+                      <td className="px-2 py-1 text-right tabular-nums text-muted-foreground">
                         {commission !== 0 ? `${ccy}${fmt2(commission)}` : '—'}
                       </td>
-                      <td className="px-2 py-1 text-right font-mono font-bold"
+                      <td className="px-2 py-1 text-right tabular-nums font-bold"
                         style={{ color: pnl >= 0 ? 'var(--c-bull)' : 'var(--c-bear)' }}>
                         {pnl >= 0 ? '+' : ''}{ccy}{fmt2(pnl)}
                       </td>
@@ -606,18 +654,16 @@ export function TradingTab({ account, positions, transactions, allTerms, termIns
                         <div className="flex gap-1">
                           <button
                             onClick={() => openEditPos(pos)}
-                            className="text-[8px] font-bold h-5 px-1.5 rounded cursor-pointer border transition-all active:scale-[0.97]"
-                            style={{ color: 'var(--c-primary)', borderColor: 'color-mix(in srgb, var(--c-primary) 40%, transparent)', background: 'var(--c-primary-soft)' }}
+                            className="text-[9px] font-medium h-5 px-2 rounded cursor-pointer border border-border bg-transparent text-muted-foreground hover:bg-muted hover:text-foreground transition-all active:scale-[0.97]"
                           >
-                            Edit
+                            Düzenle
                           </button>
                           {isOpenPos && (
                             <button
                               onClick={() => openClosePos(pos)}
-                              className="text-[8px] font-bold h-5 px-1.5 rounded cursor-pointer border transition-all active:scale-[0.97]"
-                              style={{ color: 'var(--c-bear)', borderColor: 'color-mix(in srgb, var(--c-bear) 40%, transparent)', background: 'color-mix(in srgb, var(--c-bear) 8%, transparent)' }}
+                              className="text-[9px] font-medium h-5 px-2 rounded cursor-pointer border border-destructive/40 bg-transparent text-destructive hover:bg-destructive/10 transition-all active:scale-[0.97]"
                             >
-                              Close
+                              Kapat
                             </button>
                           )}
                         </div>
@@ -638,16 +684,16 @@ export function TradingTab({ account, positions, transactions, allTerms, termIns
 
       {/* ── Bottom bar ────────────────────────────────────────────── */}
       {posTab !== 'transactions' && (
-        <div className="bg-primary px-3 py-1.5 flex items-center gap-0 text-[10px] flex-shrink-0">
+        <div className="bg-card border-t border-border px-3 py-1.5 flex items-center gap-0 text-[10px] flex-shrink-0">
           {[
-            { label: 'Count',      val: `${filteredPositions.length}`,                                           mono: true },
-            { label: 'Swap',       val: `${totalSwap < 0 ? '-' : '+'}${ccy}${fmt2(Math.abs(totalSwap))}`,       mono: true },
-            { label: 'Commission', val: `${ccy}${fmt2(totalCommission)}`,                                         mono: true },
-            { label: 'P&L',        val: `${totalPnl >= 0 ? '+' : ''}${ccy}${fmt2(totalPnl)}`,                   mono: true, color: totalPnl >= 0 ? 'var(--c-bull)' : 'var(--c-bear)' },
+            { label: 'Adet',     val: `${filteredPositions.length}` },
+            { label: 'Swap',     val: `${totalSwap < 0 ? '-' : '+'}${ccy}${fmt2(Math.abs(totalSwap))}` },
+            { label: 'Komisyon', val: `${ccy}${fmt2(totalCommission)}` },
+            { label: 'P&L',      val: `${totalPnl >= 0 ? '+' : ''}${ccy}${fmt2(totalPnl)}`, color: totalPnl >= 0 ? 'var(--c-bull)' : 'var(--c-bear)' },
           ].map((item, idx, arr) => (
-            <span key={item.label} className={`text-white/60 ${idx < arr.length - 1 ? 'pr-3.5 border-r border-white/10 mr-3.5' : ''}`}>
+            <span key={item.label} className={`text-muted-foreground ${idx < arr.length - 1 ? 'pr-3.5 border-r border-border mr-3.5' : ''}`}>
               {item.label}:{' '}
-              <span className="font-mono font-bold" style={{ color: item.color ?? 'white' }}>{item.val}</span>
+              <span className="tabular-nums font-bold" style={{ color: item.color ?? 'var(--c-text-1)' }}>{item.val}</span>
             </span>
           ))}
         </div>
@@ -662,6 +708,8 @@ export function TradingTab({ account, positions, transactions, allTerms, termIns
           ccy={ccy}
           prices={modalPrices}
           instruments={termInstruments}
+          balance={liveBalance}
+          openPositions={livePositions}
           onClose={() => setShowNewPos(false)}
           onSaved={handlePositionSaved}
         />
@@ -673,6 +721,8 @@ export function TradingTab({ account, positions, transactions, allTerms, termIns
           ccy={ccy}
           prices={modalPrices}
           instruments={termInstruments}
+          balance={liveBalance}
+          openPositions={livePositions}
           onClose={() => setEditingPos(null)}
           onSaved={handlePositionSaved}
         />
@@ -684,6 +734,8 @@ export function TradingTab({ account, positions, transactions, allTerms, termIns
           ccy={ccy}
           prices={modalPrices}
           instruments={termInstruments}
+          balance={liveBalance}
+          openPositions={livePositions}
           onClose={() => setClosingPos(null)}
           onSaved={handlePositionSaved}
         />
@@ -696,8 +748,8 @@ export function TradingTab({ account, positions, transactions, allTerms, termIns
           onClick={() => setClosingAll(false)}
         >
           <div className="bg-card rounded-lg shadow-2xl overflow-hidden w-[360px]" onClick={(e) => e.stopPropagation()}>
-            <div className="bg-primary px-3.5 py-2.5">
-              <div className="text-[12px] font-bold text-white">Tüm Pozisyonları Kapat</div>
+            <div className="px-3.5 py-3 border-b border-border">
+              <div className="text-[13px] font-bold text-foreground">Tüm Pozisyonları Kapat</div>
             </div>
             <div className="p-4">
               <p className="text-[11px] text-muted-foreground mb-4">
@@ -706,7 +758,7 @@ export function TradingTab({ account, positions, transactions, allTerms, termIns
               <form
                 action={async (fd) => {
                   fd.set('account_id', account.id)
-                  fd.set('prices', JSON.stringify(prices))
+                  fd.set('prices', JSON.stringify(snapPrices()))
                   await closeAllPositions(fd)
                   setClosingAll(false)
                   handlePositionSaved({ isNew: true })

@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { syncInstruments, updateInstrument, bulkSetTradingTerms } from '@/actions/instruments'
+import { PlatformSubNav } from '@/components/layout/PlatformSubNav'
 
 const CATEGORIES = [
   { key: 'all',       label: 'Tümü',    color: 'var(--c-primary)', bg: 'var(--c-primary)18' },
@@ -100,6 +101,8 @@ export function InstrumentsClient({
 
   return (
     <div className="flex flex-col h-full overflow-hidden bg-background">
+
+      <PlatformSubNav />
 
       {/* ── TOOLBAR ─────────────────────────────────────────── */}
       <div className="bg-card border-b border-border px-4 py-2 flex items-center gap-2 flex-shrink-0">

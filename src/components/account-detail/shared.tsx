@@ -15,8 +15,11 @@ export interface Position {
   used_margin?: number | null
   commission?: number | null
   swap?: number | null
-  opened_at?: string | null
-  closed_at?: string | null
+  opened_at?:    string | null
+  closed_at?:    string | null
+  display_qty?:   number | null
+  display_cost?:  number | null
+  ipo_listing_id?: string | null
 }
 
 export interface Transaction {
@@ -92,47 +95,50 @@ export const STATUS_COLOR: Record<string, string> = {
 // ── Formatters ──────────────────────────────────────────────────────────────
 
 export function fmt2(n: number) {
-  return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  return n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
 export function fmt4(n: number) {
-  return n.toLocaleString('en-US', { minimumFractionDigits: 4, maximumFractionDigits: 4 })
+  return n.toLocaleString('tr-TR', { minimumFractionDigits: 4, maximumFractionDigits: 4 })
 }
 
 export function fmtDt(s?: string | null) {
   return s
-    ? new Date(s).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }) +
-      ' ' + new Date(s).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+    ? new Date(s).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' }) +
+      ' ' + new Date(s).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
     : '—'
 }
 
 // ── Shared style helpers ────────────────────────────────────────────────────
 
 export const fieldCls =
-  'bg-background border border-border rounded text-[10px] px-1.5 py-1 outline-none focus:border-primary color-[var(--c-text-1)]'
+  'bg-background border border-border rounded-lg text-[11px] px-2.5 py-1.5 outline-none focus:border-primary text-foreground transition-colors'
+
+export const selectCls =
+  'bg-background border border-border rounded-lg text-[11px] px-2.5 py-1.5 outline-none focus:border-primary text-foreground cursor-pointer transition-colors'
 
 export const actionBtnCls =
-  'flex items-center gap-1 bg-muted border border-border rounded cursor-pointer text-[10px] font-semibold px-2.5 py-1 text-foreground hover:bg-muted/80 transition-colors'
+  'flex items-center gap-1.5 bg-muted border border-border rounded-lg cursor-pointer text-[11px] font-medium px-3 py-1.5 text-foreground hover:bg-muted/80 transition-colors'
 
 // ── Button class constants ──────────────────────────────────────────────────
 
 export const btnPrimary =
-  'inline-flex items-center justify-center gap-1.5 h-7 px-3 rounded-md text-[11px] font-semibold text-white cursor-pointer border-none transition-all active:scale-[0.97] hover:opacity-90'  +
-  ' bg-[var(--c-primary)]'
+  'inline-flex items-center justify-center gap-1.5 h-8 px-3.5 rounded-lg text-[12px] font-semibold cursor-pointer border-none transition-all active:scale-[0.97]' +
+  ' bg-primary text-primary-foreground hover:opacity-90 shadow-sm'
 
 export const btnSecondary =
-  'inline-flex items-center justify-center gap-1.5 h-7 px-3 rounded-md text-[11px] font-semibold cursor-pointer transition-all active:scale-[0.97] hover:bg-muted' +
-  ' border border-border bg-card text-foreground'
+  'inline-flex items-center justify-center gap-1.5 h-8 px-3.5 rounded-lg text-[12px] font-semibold cursor-pointer transition-all active:scale-[0.97]' +
+  ' border border-border bg-background text-foreground hover:bg-muted'
 
 export const btnGhost =
-  'inline-flex items-center justify-center gap-1.5 h-7 px-3 rounded-md text-[11px] font-semibold cursor-pointer transition-all active:scale-[0.97] hover:bg-muted' +
-  ' border-none bg-transparent text-muted-foreground'
+  'inline-flex items-center justify-center gap-1.5 h-8 px-3 rounded-lg text-[12px] font-medium cursor-pointer transition-all active:scale-[0.97]' +
+  ' border-none bg-transparent text-muted-foreground hover:bg-muted hover:text-foreground'
 
 export const btnDanger =
-  'inline-flex items-center justify-center gap-1.5 h-7 px-3 rounded-md text-[11px] font-semibold cursor-pointer transition-all active:scale-[0.97]' +
-  ' border border-[var(--c-bear)] bg-transparent text-[var(--c-bear)] hover:bg-[color-mix(in_srgb,var(--c-bear)_8%,transparent)]'
+  'inline-flex items-center justify-center gap-1.5 h-8 px-3.5 rounded-lg text-[12px] font-semibold cursor-pointer transition-all active:scale-[0.97]' +
+  ' border border-destructive/50 bg-transparent text-destructive hover:bg-destructive/10'
 
-export const btnSm = 'text-[10px] h-6 px-2'
+export const btnSm = 'text-[11px] h-6 px-2.5 rounded-md'
 
 // ── Shared UI components ────────────────────────────────────────────────────
 
@@ -142,8 +148,8 @@ export function Divider() {
 
 export function SectionHeader({ children, right }: { children: React.ReactNode; right?: React.ReactNode }) {
   return (
-    <div className="flex items-center justify-between pb-1.5 mb-3 border-b border-border">
-      <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+    <div className="flex items-center justify-between pb-2 mb-3 border-b border-border">
+      <span className="text-[11px] font-semibold text-muted-foreground tracking-wide">
         {children}
       </span>
       {right && <div className="flex gap-1.5">{right}</div>}
@@ -153,7 +159,7 @@ export function SectionHeader({ children, right }: { children: React.ReactNode; 
 
 export function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2">
+    <div className="text-[11px] font-semibold text-muted-foreground mb-2">
       {children}
     </div>
   )
@@ -161,10 +167,10 @@ export function SectionLabel({ children }: { children: React.ReactNode }) {
 
 export function FinCell({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
-    <div className="flex flex-col gap-0.5">
-      <div className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest">{label}</div>
+    <div className="flex flex-col gap-1">
+      <div className="text-[10px] font-medium text-muted-foreground">{label}</div>
       <div
-        className="text-[15px] font-bold font-mono leading-none"
+        className="text-[15px] font-bold tabular-nums leading-none"
         style={{ color: color ?? 'var(--c-text-1)' }}
       >
         {value}
@@ -175,9 +181,9 @@ export function FinCell({ label, value, color }: { label: string; value: string;
 
 export function FieldDisplay({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
   return (
-    <div className="border-l-2 border-[var(--c-primary-border)] pl-2.5 py-0.5">
-      <div className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest mb-0.5">{label}</div>
-      <div className={`text-[11px] font-semibold text-foreground truncate ${mono ? 'font-mono' : ''}`}>{value}</div>
+    <div className="space-y-0.5">
+      <div className="text-[10px] font-medium text-muted-foreground">{label}</div>
+      <div className={`text-[12px] font-semibold text-foreground truncate ${mono ? 'tabular-nums tracking-wide' : ''}`}>{value}</div>
     </div>
   )
 }
