@@ -165,12 +165,11 @@ export default async function IpoPage() {
                       >
                         Düzenle
                       </Link>
-                      <form action={deleteIpoListing} onSubmit={undefined}>
+                      <form action={deleteIpoListing}>
                         <input type="hidden" name="id" value={item.id} />
                         <button
                           type="submit"
                           className="text-[10px] font-semibold px-2 py-1 rounded bg-destructive/10 text-destructive border border-destructive/20 hover:bg-destructive/20 transition-colors cursor-pointer"
-                          onClick={() => { /* confirm handled by browser */ }}
                         >
                           Sil
                         </button>
