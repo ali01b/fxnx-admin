@@ -86,10 +86,10 @@ export async function syncBistInstruments(): Promise<{ synced: number; newCount:
   let rawText: string
   try {
     const res = await fetch(MILLIYET_BIST, { cache: 'no-store' })
-    if (!res.ok) return { synced: 0, error: `Milliyet API hatası: ${res.status}` }
+    if (!res.ok) return { synced: 0, newCount: 0, error: `Milliyet API hatası: ${res.status}` }
     rawText = await res.text()
   } catch (e: any) {
-    return { synced: 0, error: e.message }
+    return { synced: 0, newCount: 0, error: e.message }
   }
 
   // 2. `HisseFullData.HisseData = [...]` kısmını regex ile çıkar
