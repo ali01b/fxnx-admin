@@ -166,7 +166,6 @@ function DepositRow({
   isPending: boolean
   onApprove: (id: string) => void
   onReject: (id: string, reason: string) => void
-  flash?: boolean
   onNote: (id: string, note: string) => void
   flash?: boolean
 }) {
