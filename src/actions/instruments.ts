@@ -94,16 +94,16 @@ export async function syncBistInstruments(): Promise<{ synced: number; newCount:
 
   // 2. `HisseFullData.HisseData = [...]` kısmını regex ile çıkar
   const match = rawText.match(/HisseFullData\.HisseData\s*=\s*(\[[\s\S]*?\]);/)
-  if (!match) return { synced: 0, error: 'Milliyet API yanıtı parse edilemedi' }
+  if (!match) return { synced: 0, newCount: 0, error: 'Milliyet API yanıtı parse edilemedi' }
 
   let items: Array<{ id: string; kod: string; ad: string; tip: string }>
   try {
     items = JSON.parse(match[1])
   } catch {
-    return { synced: 0, error: 'Milliyet JSON parse hatası' }
+    return { synced: 0, newCount: 0, error: 'Milliyet JSON parse hatası' }
   }
 
-  if (!items.length) return { synced: 0, error: 'Milliyet API boş yanıt döndü' }
+  if (!items.length) return { synced: 0, newCount: 0, error: 'Milliyet API boş yanıt döndü' }
 
   // 3. Sadece tip=Hisse olanları al, instruments formatına dönüştür
   const now = new Date().toISOString()
@@ -117,7 +117,7 @@ export async function syncBistInstruments(): Promise<{ synced: number; newCount:
       // last_price null bırakıyoruz — mevcut fiyat varsa korumak için upsert ignoreDuplicates değil
     }))
 
-  if (!rows.length) return { synced: 0, error: 'Filtre sonrası kayıt kalmadı' }
+  if (!rows.length) return { synced: 0, newCount: 0, error: 'Filtre sonrası kayıt kalmadı' }
 
   // 4. Upsert instruments — mevcut kayıtlarda sadece name ve last_synced_at güncellenir
   const incomingSymbols = rows.map((r) => r.symbol)
