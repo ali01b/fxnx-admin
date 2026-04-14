@@ -11,6 +11,36 @@ import { ImportButton } from './ImportButton'
 
 export const dynamic = 'force-dynamic'
 
+const TR_MONTHS: Record<string, number> = {
+  Ocak:1,Şubat:2,Mart:3,Nisan:4,Mayıs:5,Haziran:6,
+  Temmuz:7,Ağustos:8,Eylül:9,Ekim:10,Kasım:11,Aralık:12,
+}
+
+/** "1-2-3 Nisan 2026", "7 Nisan 2026 (…)", "26-27 Şubat, 2 Mart 2026" gibi
+ *  formatlardaki en son tarihi Date olarak döner; parse edilemezse null. */
+function parseEndDate(s: string): Date | null {
+  if (!s) return null
+  // Sondaki parantez içini temizle
+  const clean = s.replace(/\(.*?\)/g, '').trim()
+  // "N Ay YYYY" formatındaki son tarihi bul
+  const matches = [...clean.matchAll(/(\d{1,2})\s+([A-ZÇĞİÖŞÜa-zçğışöü]+)\s+(\d{4})/g)]
+  if (matches.length > 0) {
+    const last = matches[matches.length - 1]
+    const month = TR_MONTHS[last[2]]
+    if (month) return new Date(parseInt(last[3]), month - 1, parseInt(last[1]))
+  }
+  // "1-2-3 Nisan 2026" → son gün
+  const sameMonth = clean.match(/(\d{1,2}(?:-\d{1,2})*)\s+([A-ZÇĞİÖŞÜa-zçğışöü]+)\s+(\d{4})/)
+  if (sameMonth) {
+    const month = TR_MONTHS[sameMonth[2]]
+    if (month) {
+      const days = sameMonth[1].split('-')
+      return new Date(parseInt(sameMonth[3]), month - 1, parseInt(days[days.length - 1]))
+    }
+  }
+  return null
+}
+
 export default async function IpoSyncPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -65,10 +95,13 @@ export default async function IpoSyncPage() {
           </thead>
           <tbody>
             {items.map((item, i) => {
-              const imported   = existingSet.has(item.ticker?.toUpperCase())
-              const isPast     = item.category === 'gecmis'
-              const isActive   = item.category === 'aktif'
-              const rowBg      = isActive
+              const imported  = existingSet.has(item.ticker?.toUpperCase())
+              const endDate   = parseEndDate(item.dates)
+              const today     = new Date(); today.setHours(0,0,0,0)
+              // Tarih bilgisi varsa tarihe göre, yoksa API kategorisine göre karar ver
+              const isPast    = endDate ? endDate < today : item.category === 'gecmis'
+              const isActive  = endDate ? endDate >= today : item.category === 'aktif'
+              const rowBg     = isActive
                 ? 'bg-green-50/70'
                 : isPast
                 ? 'bg-muted/20 opacity-60'
