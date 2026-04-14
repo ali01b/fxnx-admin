@@ -83,7 +83,7 @@ export default async function IpoSyncPage() {
               }
 
               return (
-                <tr key={item.ticker} className={`border-b border-border ${rowBg}`}>
+                <tr key={`${item.category}-${item.ticker || i}`} className={`border-b border-border ${rowBg}`}>
                   {/* Şirket */}
                   <td className="px-3 py-2">
                     <span className={`text-[12px] font-semibold ${isPast ? 'text-red-700' : ''}`} style={isPast ? {} : { color: 'var(--c-text-1)' }}>
