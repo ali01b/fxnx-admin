@@ -51,6 +51,8 @@ export interface IpoListing {
   lot_fiyat:           number | null
   pazar:               string | null
   tavan_gun:           number | null
+  gunluk_artis_orani:  number | null   // Günlük tavan artış % (default 10)
+  intraday_volatility: number | null   // Gün içi dalgalanma % (default 2)
   min_lot:             number | null
   max_lot:             number | null
   halka_arz_orani:     number | null
@@ -116,47 +118,6 @@ export async function getIpoListing(id: string): Promise<IpoListing | null> {
 
 // ── Mutations ──────────────────────────────────────────────────────
 
-export async function createIpoListing(fd: FormData) {
-  const supabase = createAdminClient()
-
-  const name   = (fd.get('name') as string).trim()
-  const ticker = (fd.get('ticker') as string).trim().toUpperCase()
-  const slug   = str(fd.get('slug')) ?? toSlug(`${ticker}-${name}`)
-
-  const { error } = await supabase.from('ipo_listings').insert({
-    ticker,
-    name,
-    slug,
-    logo_url:              str(fd.get('logo_url')),
-    source_url:            str(fd.get('source_url')),
-    badge:                 str(fd.get('badge')) ?? '',
-    status:                str(fd.get('status')) ?? 'taslak',
-    basvuru_baslangic:     str(fd.get('basvuru_baslangic')),
-    basvuru_bitis:         str(fd.get('basvuru_bitis')),
-    borsa_giris:           str(fd.get('borsa_giris')),
-    dagitim_tarihi:        str(fd.get('dagitim_tarihi')),
-    dagitim_yontemi:       str(fd.get('dagitim_yontemi')),
-    fiyat_alt:             num(fd.get('fiyat_alt')),
-    fiyat_ust:             num(fd.get('fiyat_ust')),
-    lot_fiyat:             num(fd.get('lot_fiyat')),
-    pazar:                 str(fd.get('pazar')),
-    tavan_gun:             num(fd.get('tavan_gun')),
-    is_synthetic:          fd.get('is_synthetic') === 'true',
-    min_lot:               num(fd.get('min_lot')) ?? 1,
-    max_lot:               num(fd.get('max_lot')),
-    halka_arz_orani:       num(fd.get('halka_arz_orani')),
-    halka_arz_buyuklugu:   str(fd.get('halka_arz_buyuklugu')),
-    sirket_aciklamasi:     str(fd.get('sirket_aciklamasi')),
-    tahsisat_dagilimi:     safeJson(fd.get('tahsisat_dagilimi') as string),
-    finansal_tablo:        safeJson(fd.get('finansal_tablo') as string),
-  })
-
-  if (error) throw new Error(error.message)
-
-  revalidatePath('/dashboard/ipo')
-  redirect('/dashboard/ipo')
-}
-
 export async function updateIpoListing(fd: FormData) {
   const supabase = createAdminClient()
   const id = fd.get('id') as string
@@ -179,6 +140,8 @@ export async function updateIpoListing(fd: FormData) {
     lot_fiyat:             num(fd.get('lot_fiyat')),
     pazar:                 str(fd.get('pazar')),
     tavan_gun:             num(fd.get('tavan_gun')),
+    gunluk_artis_orani:    num(fd.get('gunluk_artis_orani')) ?? 10,
+    intraday_volatility:   num(fd.get('intraday_volatility')) ?? 2,
     is_synthetic:          fd.get('is_synthetic') === 'true',
     min_lot:               num(fd.get('min_lot')) ?? 1,
     max_lot:               num(fd.get('max_lot')),
@@ -546,6 +509,58 @@ export async function importIpoFromExternal(fd: FormData): Promise<{ success: bo
   })
 
   if (error) return { success: false, error: error.message }
+
+  // Enstrüman yoksa otomatik ekle ve BIST term'lerine bağla
+  const { data: existingInstrument } = await supabase
+    .from('instruments')
+    .select('id')
+    .eq('symbol', ticker)
+    .maybeSingle()
+
+  if (!existingInstrument) {
+    const { data: newInstrument } = await supabase
+      .from('instruments')
+      .insert({
+        symbol:         ticker,
+        name:           name,
+        category:       'bist',
+        last_synced_at: new Date().toISOString(),
+      })
+      .select('id')
+      .single()
+
+    if (newInstrument) {
+      // Mevcut BIST term'lerini bul ve yeni enstrümanı bağla
+      const { data: bistTermLinks } = await supabase
+        .from('trading_term_instrument_settings')
+        .select('term_id, instruments!inner(category)')
+        .eq('instruments.category', 'bist')
+
+      const termIds = [...new Set((bistTermLinks ?? []).map((l: any) => l.term_id))]
+
+      if (termIds.length > 0) {
+        const termInserts = termIds.map((termId) => ({
+          term_id:         termId,
+          instrument_id:   newInstrument.id,
+          leverage:        1,
+          margin_call:     50,
+          stop_out:        20,
+          min_lot:         1,
+          max_lot:         10000,
+          lot_step:        1,
+          commission_rate: 0.001,
+          spread:          0,
+          is_active:       true,
+          is_tradable:     true,
+        }))
+        await supabase
+          .from('trading_term_instrument_settings')
+          .upsert(termInserts, { onConflict: 'term_id, instrument_id', ignoreDuplicates: true })
+      }
+    }
+  }
+
   revalidatePath('/dashboard/ipo')
+  revalidatePath('/dashboard/instruments')
   return { success: true }
 }

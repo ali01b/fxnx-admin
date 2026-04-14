@@ -7,7 +7,6 @@ import { createClient } from '@/lib/supabase/server'
 import { checkPermission } from '@/lib/auth-utils'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { Plus } from 'lucide-react'
 
 export const dynamic = 'force-dynamic'
 
@@ -66,13 +65,6 @@ export default async function IpoPage() {
             className="text-[11px] font-semibold px-3 py-1.5 rounded bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100 transition-colors"
           >
             Harici Talepler
-          </Link>
-          <Link
-            href="/dashboard/ipo/create"
-            className="flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1.5 rounded bg-primary text-white hover:bg-primary/90 transition-colors"
-          >
-            <Plus size={13} />
-            Yeni Halka Arz
           </Link>
         </div>
       </PageHeader>
@@ -209,8 +201,8 @@ export default async function IpoPage() {
               <tr>
                 <td colSpan={9} className="px-3 py-10 text-center text-[12px] text-muted-foreground">
                   Henüz halka arz kaydı yok.{' '}
-                  <Link href="/dashboard/ipo/create" className="text-primary underline">
-                    İlk kaydı oluşturun.
+                  <Link href="/dashboard/ipo/sync" className="text-primary underline">
+                    API&apos;den içe aktarın.
                   </Link>
                 </td>
               </tr>

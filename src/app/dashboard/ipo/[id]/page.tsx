@@ -61,7 +61,7 @@ export default async function IpoEditPage({ params }: { params: Promise<{ id: st
       </PageHeader>
 
       <div className="mt-2 max-w-3xl">
-        <IpoForm action={updateIpoListing} initial={listing} mode="edit" />
+        <IpoForm action={updateIpoListing} initial={listing} />
       </div>
     </PageContent>
   )

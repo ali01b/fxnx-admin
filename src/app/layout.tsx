@@ -9,8 +9,8 @@ import Script from 'next/script';
 const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
 export const metadata: Metadata = {
-  title: 'FXNX Admin',
-  description: 'FXNX Admin Paneli',
+  title: 'Admin',
+  description: 'Admin Paneli',
 }
 
 export default function RootLayout({

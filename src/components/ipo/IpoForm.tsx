@@ -7,7 +7,6 @@ import Link from 'next/link'
 interface Props {
   action:   (fd: FormData) => Promise<void>
   initial?: Partial<IpoListing>
-  mode:     'create' | 'edit'
 }
 
 const PAZAR_OPTIONS = [
@@ -28,7 +27,7 @@ const FINANSAL_PLACEHOLDER = JSON.stringify([
   { "donem": "2023", "gelir": "₺980 Mn",  "netKar": "₺165 Mn" }
 ], null, 2)
 
-export function IpoForm({ action, initial = {}, mode }: Props) {
+export function IpoForm({ action, initial = {} }: Props) {
   const [status, setStatus] = useState(initial.status ?? 'taslak')
   const [tahsisatJson, setTahsisatJson] = useState(
     initial.tahsisat_dagilimi ? JSON.stringify(initial.tahsisat_dagilimi, null, 2) : ''
@@ -159,6 +158,12 @@ export function IpoForm({ action, initial = {}, mode }: Props) {
           <Field label="Tavan Beklentisi (gün)" hint="Kaç gün tavan gitmesi bekleniyor?">
             <Input name="tavan_gun" defaultValue={initial.tavan_gun ?? ''} type="number" min="0" max="365" placeholder="Örn: 3" />
           </Field>
+          <Field label="Günlük Artış Oranı (%)" hint="Her gün giriş fiyatının kaç % üzerine çıkacak (default: 10)">
+            <Input name="gunluk_artis_orani" defaultValue={(initial as any).gunluk_artis_orani ?? 10} type="number" min="0" max="100" step="0.5" placeholder="Örn: 10" />
+          </Field>
+          <Field label="Gün İçi Dalgalanma (%)" hint="Gün içi simülasyon için rastgele hareket aralığı (default: 2)">
+            <Input name="intraday_volatility" defaultValue={(initial as any).intraday_volatility ?? 2} type="number" min="0" max="20" step="0.5" placeholder="Örn: 2" />
+          </Field>
           <Field label="Yapay Halka Arz" hint="TFG platformuna özgü, tavan mekanizması aktif olacak">
             <label className="flex items-center gap-2 h-7 cursor-pointer">
               <input
@@ -258,7 +263,7 @@ export function IpoForm({ action, initial = {}, mode }: Props) {
           type="submit"
           className="text-[12px] font-semibold px-5 py-2 rounded bg-primary text-white hover:bg-primary/90 transition-colors"
         >
-          {mode === 'create' ? 'Halka Arz Oluştur' : 'Değişiklikleri Kaydet'}
+          Değişiklikleri Kaydet
         </button>
       </div>
     </form>
