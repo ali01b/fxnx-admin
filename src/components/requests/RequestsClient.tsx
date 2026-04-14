@@ -69,6 +69,7 @@ interface PaymentAccount {
   id: string
   type: string
   label: string | null
+  description: string | null
   currency: string | null
   is_active: boolean
   bank_name: string | null
