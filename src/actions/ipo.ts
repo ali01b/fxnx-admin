@@ -369,15 +369,16 @@ function parseTrDate(s: string): string | null {
 }
 
 function parseTrDateRange(s: string): { start: string | null; end: string | null } {
-  // "19-20 Şubat 2026" → aynı ay, iki gün
-  const sameMonth = s.trim().match(/(\d{1,2})-(\d{1,2})\s+(\S+)\s+(\d{4})/)
+  // "1-2-3 Nisan 2026" veya "19-20 Şubat 2026" → aynı ay, N gün (ilk ve son gün)
+  const sameMonth = s.trim().match(/^(\d{1,2}(?:-\d{1,2})*)\s+(\S+)\s+(\d{4})/)
   if (sameMonth) {
-    const month = TR_MONTHS[sameMonth[3]]
-    const year  = sameMonth[4]
+    const month = TR_MONTHS[sameMonth[2]]
+    const year  = sameMonth[3]
     if (!month) return { start: null, end: null }
+    const days = sameMonth[1].split('-')
     return {
-      start: `${year}-${month}-${sameMonth[1].padStart(2, '0')}`,
-      end:   `${year}-${month}-${sameMonth[2].padStart(2, '0')}`,
+      start: `${year}-${month}-${days[0].padStart(2, '0')}`,
+      end:   `${year}-${month}-${days[days.length - 1].padStart(2, '0')}`,
     }
   }
   // "19 Şubat - 20 Mart 2026" → farklı ay
@@ -441,55 +442,69 @@ export async function importIpoFromExternal(fd: FormData): Promise<{ success: bo
     .from('ipo_listings').select('id').eq('ticker', ticker).maybeSingle()
   if (existing) return { success: false, error: `${ticker} zaten içe aktarılmış` }
 
-  // Detay endpoint'inden daha fazla bilgi çek
   let basvuru_baslangic: string | null = null
   let basvuru_bitis:     string | null = null
+  let borsa_giris:       string | null = null
   let dagitim_tarihi:    string | null = null
   let dagitim_yontemi:   string | null = null
   let lot_fiyat:         number | null = null
   let fiyat_alt:         number | null = null
   let fiyat_ust:         number | null = null
+  let halka_arz_orani:   number | null = null
+  let pazar:             string | null = null
+  let logo_url:          string | null = null
   let sirket_aciklamasi: string | null = null
 
   try {
-    const detail = await fetch(`${EXT_API}/detail/${extSlug}`, { cache: 'no-store' }).then(r => r.json())
-    const arz    = (detail?.arzDetaylari ?? {}) as Record<string, string>
+    const resp   = await fetch(`${EXT_API}/detail/${extSlug}`, { cache: 'no-store' }).then(r => r.json())
+    const data   = resp?.data ?? {}
+    const basic  = (data.basicInfo ?? {}) as Record<string, unknown>
 
-    // Talep Toplama Tarihleri
-    const talepKey = Object.keys(arz).find(k => k.toLowerCase().includes('talep') && k.toLowerCase().includes('tarih'))
-    if (talepKey) {
-      const { start, end } = parseTrDateRange(arz[talepKey])
-      basvuru_baslangic = start
-      basvuru_bitis     = end
-    } else if (extDates) {
-      const { start, end } = parseTrDateRange(extDates)
-      basvuru_baslangic = start
+    // Logo
+    logo_url = (data.logo as string) || null
+
+    // Pazar
+    pazar = (data.pazar as string) || (basic.pazar as string) || null
+
+    // Şirket açıklaması
+    sirket_aciklamasi = (data.sirketAciklamasi as string) || null
+
+    // Talep toplama tarihleri
+    const halkaArzTarihi    = (data.halkaArzTarihi as string) || extDates
+    const halkaArzTarihiISO = data.halkaArzTarihiISO as string | null
+
+    if (halkaArzTarihi) {
+      const { start, end } = parseTrDateRange(halkaArzTarihi)
+      basvuru_baslangic = halkaArzTarihiISO ?? start   // ISO kesin tarihi varsa kullan
       basvuru_bitis     = end
     }
 
-    // Dağıtım Tarihi
-    const dagKey = Object.keys(arz).find(k => k.toLowerCase().includes('dağıtım') && k.toLowerCase().includes('tarih'))
-    if (dagKey) dagitim_tarihi = parseTrDate(arz[dagKey])
+    // Borsa ilk işlem tarihi
+    const bistTarihi = (basic.bistIlkIslemTarihi as string) || null
+    if (bistTarihi) borsa_giris = parseTrDate(bistTarihi)
 
-    // Dağıtım Yöntemi
-    const yonKey = Object.keys(arz).find(k => k.toLowerCase().includes('yöntem') || k.toLowerCase().includes('yöntemi'))
-    if (yonKey) dagitim_yontemi = arz[yonKey]
+    // Dağıtım yöntemi
+    dagitim_yontemi = (basic.dagitimYontemi as string) || null
 
-    // Fiyat
-    const fiyatKey = Object.keys(arz).find(k => k.toLowerCase().includes('fiyat'))
-    if (fiyatKey) {
-      const val = arz[fiyatKey]
-      if (val.includes('-')) {
-        // Aralık: "28,00 - 32,00 TL"
-        const parts = val.split('-')
-        fiyat_alt = parseTrPrice(parts[0])
-        fiyat_ust = parseTrPrice(parts[1])
+    // Fiyat: "21,10 TL" veya "28,00 - 32,00 TL"
+    const fiyatStr = (basic.fiyat as string) || ''
+    if (fiyatStr) {
+      // Fiyat aralığı için "28,00 - 32,00 TL" formatı
+      const rangeMatch = fiyatStr.match(/^([\d,.]+)\s*-\s*([\d,.]+)/)
+      if (rangeMatch) {
+        fiyat_alt = parseTrPrice(rangeMatch[1])
+        fiyat_ust = parseTrPrice(rangeMatch[2])
       } else {
-        lot_fiyat = parseTrPrice(val)
+        lot_fiyat = parseTrPrice(fiyatStr)
       }
     }
 
-    sirket_aciklamasi = detail?.sirketAciklamasi ?? null
+    // Halka arz oranı: "%25.09" → 25.09
+    const dolasimOrani = (basic.fiiliDolasimPayOrani as string) || ''
+    if (dolasimOrani) {
+      const n = parseFloat(dolasimOrani.replace('%', '').replace(',', '.'))
+      if (!isNaN(n)) halka_arz_orani = n
+    }
   } catch {
     // Detay çekilemezse ham tarih metnini parse etmeyi dene
     if (extDates) {
@@ -505,16 +520,20 @@ export async function importIpoFromExternal(fd: FormData): Promise<{ success: bo
     ticker,
     name,
     slug,
+    logo_url,
     source_url:        sourceUrl || null,
     badge:             badge || '',
     status:            'taslak',
+    pazar,
     basvuru_baslangic,
     basvuru_bitis,
+    borsa_giris,
     dagitim_tarihi,
     dagitim_yontemi,
     lot_fiyat,
     fiyat_alt,
     fiyat_ust,
+    halka_arz_orani,
     sirket_aciklamasi,
     min_lot:           1,
     tahsisat_dagilimi: [],
