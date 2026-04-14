@@ -210,21 +210,29 @@ export async function deleteIpoListing(fd: FormData) {
 
 // ── Application Management ──────────────────────────────────────────────
 
+async function enrichWithProfiles(supabase: ReturnType<typeof createAdminClient>, apps: any[]): Promise<any[]> {
+  if (!apps.length) return apps
+  const profileIds = [...new Set(apps.map((a: any) => a.profile_id))]
+  const { data: profiles } = await supabase
+    .from('profiles')
+    .select('id, first_name, last_name, email')
+    .in('id', profileIds)
+  const profileMap = Object.fromEntries((profiles ?? []).map((p: any) => [p.id, p]))
+  return apps.map((a: any) => ({ ...a, profile: profileMap[a.profile_id] ?? null }))
+}
+
 export async function getIpoApplications(ipoListingId: string): Promise<IpoApplication[]> {
   const supabase = createAdminClient()
   const { data } = await supabase
     .from('ipo_applications')
-    .select(`
-      *,
-      profiles:profile_id ( first_name, last_name, email ),
-      ipo_listings:ipo_listing_id ( ticker, name, lot_fiyat, is_synthetic )
-    `)
+    .select('*, ipo_listings:ipo_listing_id ( ticker, name, lot_fiyat, is_synthetic )')
     .eq('ipo_listing_id', ipoListingId)
     .order('created_at', { ascending: false })
 
-  return (data ?? []).map((r: any) => ({
+  const enriched = await enrichWithProfiles(supabase, data ?? [])
+  return enriched.map((r: any) => ({
     ...r,
-    profile:     r.profiles     ?? null,
+    profile:     r.profile      ?? null,
     ipo_listing: r.ipo_listings ?? null,
   })) as IpoApplication[]
 }
@@ -234,11 +242,12 @@ export async function getExtIpoApplications(): Promise<IpoApplication[]> {
   const supabase = createAdminClient()
   const { data } = await supabase
     .from('ipo_applications')
-    .select(`*, profiles:profile_id ( first_name, last_name, email )`)
+    .select('*')
     .is('ipo_listing_id', null)
     .order('created_at', { ascending: false })
 
-  return (data ?? []).map((r: any) => ({
+  const enriched = await enrichWithProfiles(supabase, data ?? [])
+  return enriched.map((r: any) => ({
     ...r,
     profile:     r.profiles ?? null,
     ipo_listing: null,
