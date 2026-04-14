@@ -67,8 +67,11 @@ export default async function IpoSyncPage() {
             {items.map((item, i) => {
               const imported   = existingSet.has(item.ticker?.toUpperCase())
               const isPast     = item.category === 'gecmis'
-              const rowBg      = isPast
-                ? 'bg-red-50/60'
+              const isActive   = item.category === 'aktif'
+              const rowBg      = isActive
+                ? 'bg-green-50/70'
+                : isPast
+                ? 'bg-muted/20 opacity-60'
                 : i % 2 === 1 ? 'bg-muted/30' : 'bg-card'
 
               const CATEGORY_BADGE: Record<string, string> = {
@@ -86,7 +89,7 @@ export default async function IpoSyncPage() {
                 <tr key={`${item.category}-${item.ticker || i}`} className={`border-b border-border ${rowBg}`}>
                   {/* Şirket */}
                   <td className="px-3 py-2">
-                    <span className={`text-[12px] font-semibold ${isPast ? 'text-red-700' : ''}`} style={isPast ? {} : { color: 'var(--c-text-1)' }}>
+                    <span className="text-[12px] font-semibold" style={{ color: 'var(--c-text-1)' }}>
                       {item.name}
                     </span>
                     {item.badge && (
@@ -104,7 +107,7 @@ export default async function IpoSyncPage() {
                   </td>
 
                   {/* Tarihler */}
-                  <td className={`px-3 py-2 text-[11px] whitespace-nowrap ${isPast ? 'text-red-500' : 'text-muted-foreground'}`}>
+                  <td className="px-3 py-2 text-[11px] text-muted-foreground whitespace-nowrap">
                     {item.dates || '—'}
                   </td>
 
