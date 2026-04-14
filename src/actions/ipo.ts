@@ -8,7 +8,9 @@ import { redirect } from 'next/navigation'
 
 export interface IpoApplication {
   id:              string
-  ipo_listing_id:  string
+  ipo_listing_id:  string | null
+  ext_ticker:      string | null
+  ext_name:        string | null
   profile_id:      string
   account_id:      string
   requested_lots:  number
@@ -224,6 +226,22 @@ export async function getIpoApplications(ipoListingId: string): Promise<IpoAppli
     ...r,
     profile:     r.profiles     ?? null,
     ipo_listing: r.ipo_listings ?? null,
+  })) as IpoApplication[]
+}
+
+// All external (non-Supabase) applications — grouped view for admin
+export async function getExtIpoApplications(): Promise<IpoApplication[]> {
+  const supabase = createAdminClient()
+  const { data } = await supabase
+    .from('ipo_applications')
+    .select(`*, profiles:profile_id ( first_name, last_name, email )`)
+    .is('ipo_listing_id', null)
+    .order('created_at', { ascending: false })
+
+  return (data ?? []).map((r: any) => ({
+    ...r,
+    profile:     r.profiles ?? null,
+    ipo_listing: null,
   })) as IpoApplication[]
 }
 
