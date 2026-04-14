@@ -49,14 +49,14 @@ export default async function IpoSyncPage() {
 
         {items.length === 0 && (
           <div className="px-3 py-10 text-center text-[12px] text-muted-foreground">
-            API'den veri alınamadı veya aktif halka arz bulunamadı.
+            API'den veri alınamadı.
           </div>
         )}
 
         <table className="w-full">
           <thead>
             <tr className="bg-muted border-b border-border">
-              {['Şirket', 'Ticker', 'Tarih Aralığı', 'Kaynak', 'Durum', 'İşlem'].map(h => (
+              {['Şirket', 'Ticker', 'Tarih Aralığı', 'Kategori', 'Kaynak', 'Durum', 'İşlem'].map(h => (
                 <th key={h} className="px-3 py-2 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-wide whitespace-nowrap">
                   {h}
                 </th>
@@ -65,12 +65,28 @@ export default async function IpoSyncPage() {
           </thead>
           <tbody>
             {items.map((item, i) => {
-              const imported = existingSet.has(item.ticker?.toUpperCase())
+              const imported   = existingSet.has(item.ticker?.toUpperCase())
+              const isPast     = item.category === 'gecmis'
+              const rowBg      = isPast
+                ? 'bg-red-50/60'
+                : i % 2 === 1 ? 'bg-muted/30' : 'bg-card'
+
+              const CATEGORY_BADGE: Record<string, string> = {
+                aktif:  'bg-sky-100 text-sky-700 border-sky-200',
+                taslak: 'bg-blue-50 text-blue-600 border-blue-200',
+                gecmis: 'bg-red-50 text-red-600 border-red-200',
+              }
+              const CATEGORY_LABEL: Record<string, string> = {
+                aktif:  'Aktif',
+                taslak: 'Taslak',
+                gecmis: 'Geçmiş',
+              }
+
               return (
-                <tr key={item.ticker} className={`border-b border-border ${i % 2 === 1 ? 'bg-muted/30' : 'bg-card'}`}>
+                <tr key={item.ticker} className={`border-b border-border ${rowBg}`}>
                   {/* Şirket */}
                   <td className="px-3 py-2">
-                    <span className="text-[12px] font-semibold" style={{ color: 'var(--c-text-1)' }}>
+                    <span className={`text-[12px] font-semibold ${isPast ? 'text-red-700' : ''}`} style={isPast ? {} : { color: 'var(--c-text-1)' }}>
                       {item.name}
                     </span>
                     {item.badge && (
@@ -88,8 +104,15 @@ export default async function IpoSyncPage() {
                   </td>
 
                   {/* Tarihler */}
-                  <td className="px-3 py-2 text-[11px] text-muted-foreground whitespace-nowrap">
+                  <td className={`px-3 py-2 text-[11px] whitespace-nowrap ${isPast ? 'text-red-500' : 'text-muted-foreground'}`}>
                     {item.dates || '—'}
+                  </td>
+
+                  {/* Kategori */}
+                  <td className="px-3 py-2">
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${CATEGORY_BADGE[item.category] ?? CATEGORY_BADGE.taslak}`}>
+                      {CATEGORY_LABEL[item.category] ?? item.category}
+                    </span>
                   </td>
 
                   {/* Kaynak */}

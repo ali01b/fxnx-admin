@@ -412,7 +412,7 @@ export interface ExtApiIpo {
   badge:    string
 }
 
-/** Dış API'deki tüm aktif halka arzları çeker (admin senkronizasyon sayfası için) */
+/** Dış API'deki tüm halka arzları çeker (aktif + taslak + gecmis) */
 export async function getExternalApiIpos(): Promise<{ items: ExtApiIpo[]; existingTickers: string[] }> {
   const supabase = createAdminClient()
 
@@ -421,7 +421,12 @@ export async function getExternalApiIpos(): Promise<{ items: ExtApiIpo[]; existi
     supabase.from('ipo_listings').select('ticker'),
   ])
 
-  const items: ExtApiIpo[] = apiRes?.data?.aktif ?? []
+  const aktif:  ExtApiIpo[] = (apiRes?.data?.aktif  ?? []).map((i: ExtApiIpo) => ({ ...i, category: 'aktif' }))
+  const taslak: ExtApiIpo[] = (apiRes?.data?.taslak ?? []).map((i: ExtApiIpo) => ({ ...i, category: 'taslak' }))
+  const gecmis: ExtApiIpo[] = (apiRes?.data?.gecmis ?? []).map((i: ExtApiIpo) => ({ ...i, category: 'gecmis' }))
+
+  // Sıralama: aktif → taslak → gecmis
+  const items = [...aktif, ...taslak, ...gecmis]
   const existingTickers = (dbRes.data ?? []).map((r: any) => r.ticker as string)
 
   return { items, existingTickers }
