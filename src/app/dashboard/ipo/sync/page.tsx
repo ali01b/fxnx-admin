@@ -1,4 +1,4 @@
-import { getExternalApiIpos, importIpoFromExternal } from '@/actions/ipo'
+import { getExternalApiIpos } from '@/actions/ipo'
 import { PageContent }  from '@/components/layout/PageContent'
 import { PageHeader }   from '@/components/layout/PageHeader'
 import { SectionCard }  from '@/components/layout/SectionCard'
@@ -7,6 +7,7 @@ import { checkPermission } from '@/lib/auth-utils'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { ChevronLeft, ExternalLink } from 'lucide-react'
+import { ImportButton } from './ImportButton'
 
 export const dynamic = 'force-dynamic'
 
@@ -123,26 +124,20 @@ export default async function IpoSyncPage() {
                   <td className="px-3 py-2">
                     {imported ? (
                       <Link
-                        href={`/dashboard/ipo`}
+                        href="/dashboard/ipo"
                         className="text-[10px] font-semibold px-2 py-1 rounded bg-muted text-muted-foreground border border-border hover:bg-muted/80 transition-colors"
                       >
                         Düzenle
                       </Link>
                     ) : (
-                      <form action={importIpoFromExternal}>
-                        <input type="hidden" name="ticker" value={item.ticker} />
-                        <input type="hidden" name="name"   value={item.name} />
-                        <input type="hidden" name="slug"   value={item.slug} />
-                        <input type="hidden" name="dates"  value={item.dates} />
-                        <input type="hidden" name="url"    value={item.url} />
-                        <input type="hidden" name="badge"  value={item.badge} />
-                        <button
-                          type="submit"
-                          className="text-[10px] font-semibold px-2 py-1 rounded bg-primary text-white hover:bg-primary/90 transition-colors cursor-pointer"
-                        >
-                          İçe Aktar
-                        </button>
-                      </form>
+                      <ImportButton
+                        ticker={item.ticker}
+                        name={item.name}
+                        slug={item.slug}
+                        dates={item.dates ?? ''}
+                        url={item.url ?? ''}
+                        badge={item.badge ?? ''}
+                      />
                     )}
                   </td>
                 </tr>
