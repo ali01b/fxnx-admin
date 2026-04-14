@@ -330,6 +330,7 @@ function WithdrawalRow({
   onApprove,
   onReject,
   onNote,
+  flash,
 }: {
   req: WithdrawalRequest
   action: RowAction
