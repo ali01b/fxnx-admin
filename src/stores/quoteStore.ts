@@ -88,7 +88,7 @@ export const useQuoteStore = create<QuoteState>((set, get) => {
           const merged = { ...prev } as QuoteItem
           for (const [k, v] of Object.entries(msg)) {
             if (v !== null && v !== undefined && k !== 'event') {
-              ;(merged as Record<string, unknown>)[k] = v
+              ;(merged as unknown as Record<string, unknown>)[k] = v
             }
           }
           // Yahoo WS sends 'price', normalize to 'last' for internal consistency
