@@ -84,38 +84,51 @@ export function IpoForm({ action, initial = {}, mode }: Props) {
 
       {/* ── Durum ───────────────────────────────────────────────── */}
       <Section title="Durum">
-        <div className="flex gap-3">
-          {(['taslak', 'aktif', 'gecmis'] as const).map(s => (
-            <label key={s} className="flex items-center gap-2 cursor-pointer">
+        <div className="flex flex-wrap gap-3">
+          {([
+            { value: 'taslak',             label: 'Taslak',               color: 'var(--c-primary)'  },
+            { value: 'talep_toplaniyor',   label: 'Talep Toplanıyor',     color: '#1E6FCC'           },
+            { value: 'dagitim_bekleniyor', label: 'Dağıtım Bekleniyor',   color: '#D97706'           },
+            { value: 'dagitildi',          label: 'Dağıtıldı',            color: 'var(--c-bull)'     },
+            { value: 'gecmis',             label: 'Geçmiş',               color: 'var(--c-text-3)'   },
+            { value: 'iptal',              label: 'İptal',                color: 'var(--c-bear)'     },
+          ]).map(s => (
+            <label key={s.value} className="flex items-center gap-2 cursor-pointer">
               <input
                 type="radio"
                 name="status"
-                value={s}
-                checked={status === s}
-                onChange={() => setStatus(s)}
+                value={s.value}
+                checked={status === s.value}
+                onChange={() => setStatus(s.value as any)}
                 className="accent-primary"
               />
-              <span className="text-[12px] font-semibold capitalize" style={{ color: s === 'aktif' ? 'var(--c-bull)' : s === 'gecmis' ? 'var(--c-text-3)' : 'var(--c-primary)' }}>
-                {s === 'aktif' ? 'Aktif' : s === 'taslak' ? 'Taslak' : 'Geçmiş'}
+              <span className="text-[12px] font-semibold" style={{ color: s.color }}>
+                {s.label}
               </span>
             </label>
           ))}
         </div>
         <p className="text-[10px] text-muted-foreground mt-1.5">
-          <strong>Taslak:</strong> sadece admin görür · <strong>Aktif:</strong> kullanıcılara gösterilir · <strong>Geçmiş:</strong> tamamlanan arzlar
+          <strong>Taslak:</strong> admin görür · <strong>Talep Toplanıyor:</strong> başvurular açık · <strong>Dağıtım Bekleniyor:</strong> başvuru kapandı · <strong>Dağıtıldı:</strong> lotlar verildi
         </p>
       </Section>
 
       {/* ── Tarihler ────────────────────────────────────────────── */}
       <Section title="Başvuru ve Listeleme Tarihleri">
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 gap-3">
           <Field label="Başvuru Başlangıcı">
             <Input name="basvuru_baslangic" defaultValue={initial.basvuru_baslangic ?? ''} type="date" />
           </Field>
           <Field label="Başvuru Bitişi">
             <Input name="basvuru_bitis" defaultValue={initial.basvuru_bitis ?? ''} type="date" />
           </Field>
-          <Field label="Borsa Girişi (İlk İşlem)">
+          <Field label="Dağıtım Tarihi" hint="Lot dağıtımının gerçekleşeceği tarih">
+            <Input name="dagitim_tarihi" defaultValue={(initial as any).dagitim_tarihi ?? ''} type="date" />
+          </Field>
+          <Field label="Dağıtım Yöntemi" hint="Örn: Eşit, Oransal, Kura">
+            <Input name="dagitim_yontemi" defaultValue={(initial as any).dagitim_yontemi ?? ''} placeholder="Eşit" />
+          </Field>
+          <Field label="Borsa Girişi (İlk İşlem Tarihi)">
             <Input name="borsa_giris" defaultValue={initial.borsa_giris ?? ''} type="date" />
           </Field>
         </div>

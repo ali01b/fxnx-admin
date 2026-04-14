@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { syncInstruments, updateInstrument, bulkSetTradingTerms } from '@/actions/instruments'
+import { syncInstruments, syncBistInstruments, updateInstrument, bulkSetTradingTerms } from '@/actions/instruments'
 import { PlatformSubNav } from '@/components/layout/PlatformSubNav'
 
 const CATEGORIES = [
@@ -67,8 +67,9 @@ export function InstrumentsClient({
 }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
-  const [syncing, setSyncing]       = useState(false)
-  const [syncResult, setSyncResult] = useState<string | null>(null)
+  const [syncing, setSyncing]         = useState(false)
+  const [syncingBist, setSyncingBist] = useState(false)
+  const [syncResult, setSyncResult]   = useState<string | null>(null)
   const [search, setSearch]         = useState(initialSearch)
   const [editId, setEditId]         = useState<string | null>(null)
   const [showBulk, setShowBulk]     = useState(false)
@@ -93,6 +94,20 @@ export function InstrumentsClient({
       setSyncResult(`Hata: ${res.error}`)
     } else {
       setSyncResult(`${res.synced} enstrüman senkronize edildi.`)
+      setTimeout(() => window.location.reload(), 800)
+    }
+  }
+
+  const handleSyncBist = async () => {
+    setSyncingBist(true)
+    setSyncResult(null)
+    const res = await syncBistInstruments()
+    setSyncingBist(false)
+    if (res.error) {
+      setSyncResult(`BIST Hata: ${res.error}`)
+    } else {
+      const newMsg = res.newCount > 0 ? ` (${res.newCount} yeni eklendi)` : ''
+      setSyncResult(`BIST: ${res.synced} hisse senkronize edildi${newMsg}.`)
       setTimeout(() => window.location.reload(), 800)
     }
   }
@@ -145,8 +160,21 @@ export function InstrumentsClient({
             Toplu Ayar
           </button>
           <button
+            onClick={handleSyncBist}
+            disabled={syncingBist || syncing}
+            className="text-[11px] font-semibold px-3 py-1.5 rounded border cursor-pointer"
+            style={{
+              background: syncingBist ? 'var(--c-muted)' : '#00A65118',
+              borderColor: syncingBist ? 'var(--c-border)' : '#00A651',
+              color: syncingBist ? 'var(--c-text-3)' : '#00A651',
+              cursor: syncingBist ? 'not-allowed' : 'pointer',
+            }}
+          >
+            {syncingBist ? 'BIST yükleniyor...' : 'BIST Hisselerini Senkronize Et'}
+          </button>
+          <button
             onClick={handleSync}
-            disabled={syncing}
+            disabled={syncing || syncingBist}
             className="text-[11px] font-semibold px-3 py-1.5 rounded text-white border-none cursor-pointer"
             style={{ background: syncing ? 'var(--c-muted)' : 'var(--c-primary)', cursor: syncing ? 'not-allowed' : 'pointer' }}
           >

@@ -3,7 +3,8 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
 
-const QUOTES_API = 'https://strata-demo.com/api/quotes_all'
+const QUOTES_API      = 'https://strata-demo.com/api/quotes_all'
+const MILLIYET_BIST   = 'https://uzmanpara.milliyet.com.tr/js/hisse_endeks_liste.js'
 
 export async function syncInstruments(): Promise<{ synced: number; error?: string }> {
   const supabase = createAdminClient()
@@ -71,6 +72,127 @@ export async function syncInstruments(): Promise<{ synced: number; error?: strin
 
   revalidatePath('/dashboard/instruments')
   return { synced }
+}
+
+// ── Milliyet BIST sync ─────────────────────────────────────────────────────
+// Kaynak: https://uzmanpara.milliyet.com.tr/js/hisse_endeks_liste.js
+// Format: JS dosyası içinde `HisseFullData.HisseData = [{id,kod,ad,tip}, ...]`
+// Sadece BIST hisselerini ekler/günceller — mevcut fiyat bilgisi yok, last_price=null
+
+export async function syncBistInstruments(): Promise<{ synced: number; newCount: number; error?: string }> {
+  const supabase = createAdminClient()
+
+  // 1. JS dosyasını çek
+  let rawText: string
+  try {
+    const res = await fetch(MILLIYET_BIST, { cache: 'no-store' })
+    if (!res.ok) return { synced: 0, error: `Milliyet API hatası: ${res.status}` }
+    rawText = await res.text()
+  } catch (e: any) {
+    return { synced: 0, error: e.message }
+  }
+
+  // 2. `HisseFullData.HisseData = [...]` kısmını regex ile çıkar
+  const match = rawText.match(/HisseFullData\.HisseData\s*=\s*(\[[\s\S]*?\]);/)
+  if (!match) return { synced: 0, error: 'Milliyet API yanıtı parse edilemedi' }
+
+  let items: Array<{ id: string; kod: string; ad: string; tip: string }>
+  try {
+    items = JSON.parse(match[1])
+  } catch {
+    return { synced: 0, error: 'Milliyet JSON parse hatası' }
+  }
+
+  if (!items.length) return { synced: 0, error: 'Milliyet API boş yanıt döndü' }
+
+  // 3. Sadece tip=Hisse olanları al, instruments formatına dönüştür
+  const now = new Date().toISOString()
+  const rows = items
+    .filter((item) => item.tip === 'Hisse' && item.kod)
+    .map((item) => ({
+      symbol:         item.kod.trim().toUpperCase(),
+      name:           item.ad.trim(),
+      category:       'bist',
+      last_synced_at: now,
+      // last_price null bırakıyoruz — mevcut fiyat varsa korumak için upsert ignoreDuplicates değil
+    }))
+
+  if (!rows.length) return { synced: 0, error: 'Filtre sonrası kayıt kalmadı' }
+
+  // 4. Upsert instruments — mevcut kayıtlarda sadece name ve last_synced_at güncellenir
+  const incomingSymbols = rows.map((r) => r.symbol)
+
+  // Zaten var olan BIST sembollerini bul (upsert sonrası yeni eklenenleri tespit için)
+  const { data: existingRows } = await supabase
+    .from('instruments')
+    .select('symbol')
+    .in('symbol', incomingSymbols)
+  const existingSymbols = new Set((existingRows ?? []).map((r: any) => r.symbol))
+  const newSymbols = incomingSymbols.filter((s) => !existingSymbols.has(s))
+
+  let synced = 0
+  for (let i = 0; i < rows.length; i += 200) {
+    const batch = rows.slice(i, i + 200)
+    const { error } = await supabase
+      .from('instruments')
+      .upsert(batch, { onConflict: 'symbol', ignoreDuplicates: false })
+    if (error) {
+      console.error('[syncBistInstruments] batch error:', error.message)
+    } else {
+      synced += batch.length
+    }
+  }
+
+  // 5. Yeni eklenen hisseleri mevcut trading term'lere otomatik bağla
+  //    Kriter: halihazırda en az 1 BIST enstrümanı olan tüm term'ler
+  if (newSymbols.length > 0) {
+    // Yeni eklenen instrument id'lerini çek
+    const { data: newInstruments } = await supabase
+      .from('instruments')
+      .select('id, symbol, min_lot, max_lot, lot_step, is_active, is_tradable')
+      .in('symbol', newSymbols)
+
+    // BIST'e bağlı distinct term_id'leri bul
+    const { data: bistTermLinks } = await supabase
+      .from('trading_term_instrument_settings')
+      .select('term_id, instruments!inner(category)')
+      .eq('instruments.category', 'bist')
+
+    const termIds = [...new Set((bistTermLinks ?? []).map((l: any) => l.term_id))]
+
+    if (termIds.length > 0 && (newInstruments ?? []).length > 0) {
+      const termInserts: any[] = []
+      for (const termId of termIds) {
+        for (const inst of newInstruments ?? []) {
+          termInserts.push({
+            term_id:         termId,
+            instrument_id:   inst.id,
+            leverage:        1,
+            margin_call:     50,
+            stop_out:        20,
+            min_lot:         inst.min_lot  ?? 1,
+            max_lot:         inst.max_lot  ?? 10000,
+            lot_step:        inst.lot_step ?? 1,
+            commission_rate: 0.001,
+            spread:          0,
+            is_active:       true,
+            is_tradable:     true,
+          })
+        }
+      }
+      for (let i = 0; i < termInserts.length; i += 200) {
+        await supabase
+          .from('trading_term_instrument_settings')
+          .upsert(termInserts.slice(i, i + 200), {
+            onConflict:      'term_id, instrument_id',
+            ignoreDuplicates: true,   // zaten varsa dokunma
+          })
+      }
+    }
+  }
+
+  revalidatePath('/dashboard/instruments')
+  return { synced, newCount: newSymbols.length }
 }
 
 const SORTABLE_COLS = new Set([

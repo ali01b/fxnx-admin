@@ -12,15 +12,22 @@ import { Plus } from 'lucide-react'
 export const dynamic = 'force-dynamic'
 
 const STATUS_LABELS: Record<string, { label: string; cls: string }> = {
-  aktif:  { label: 'Aktif',   cls: 'bg-green-100 text-green-700 border border-green-200' },
-  taslak: { label: 'Taslak',  cls: 'bg-blue-50 text-blue-600 border border-blue-200' },
-  gecmis: { label: 'Geçmiş',  cls: 'bg-muted text-muted-foreground border border-border' },
+  taslak:             { label: 'Taslak',             cls: 'bg-blue-50 text-blue-600 border border-blue-200' },
+  aktif:              { label: 'Talep Toplanıyor',   cls: 'bg-sky-100 text-sky-700 border border-sky-200' },
+  talep_toplaniyor:   { label: 'Talep Toplanıyor',   cls: 'bg-sky-100 text-sky-700 border border-sky-200' },
+  dagitim_bekleniyor: { label: 'Dağıtım Bekleniyor', cls: 'bg-amber-50 text-amber-700 border border-amber-200' },
+  dagitildi:          { label: 'Dağıtıldı',          cls: 'bg-green-100 text-green-700 border border-green-200' },
+  gecmis:             { label: 'Geçmiş',             cls: 'bg-muted text-muted-foreground border border-border' },
+  iptal:              { label: 'İptal',              cls: 'bg-red-50 text-red-600 border border-red-200' },
 }
 
 const STATUS_OPTIONS = [
-  { value: 'aktif',  label: 'Aktif'  },
-  { value: 'taslak', label: 'Taslak' },
-  { value: 'gecmis', label: 'Geçmiş' },
+  { value: 'taslak',             label: 'Taslak'             },
+  { value: 'talep_toplaniyor',   label: 'Talep Toplanıyor'   },
+  { value: 'dagitim_bekleniyor', label: 'Dağıtım Bekleniyor' },
+  { value: 'dagitildi',          label: 'Dağıtıldı'          },
+  { value: 'gecmis',             label: 'Geçmiş'             },
+  { value: 'iptal',              label: 'İptal'              },
 ]
 
 function fDate(s: string | null) {
@@ -39,15 +46,21 @@ export default async function IpoPage() {
   const listings = await getIpoListings()
 
   const counts = {
-    aktif:  listings.filter(l => l.status === 'aktif').length,
-    taslak: listings.filter(l => l.status === 'taslak').length,
-    gecmis: listings.filter(l => l.status === 'gecmis').length,
+    talep_toplaniyor:   listings.filter(l => l.status === 'talep_toplaniyor' || l.status === 'aktif').length,
+    dagitim_bekleniyor: listings.filter(l => l.status === 'dagitim_bekleniyor').length,
+    taslak:             listings.filter(l => l.status === 'taslak').length,
   }
 
   return (
     <PageContent>
       <PageHeader title="Halka Arz Yönetimi">
         <div className="flex items-center gap-2">
+          <Link
+            href="/dashboard/ipo/sync"
+            className="text-[11px] font-semibold px-3 py-1.5 rounded bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 transition-colors"
+          >
+            API Senkronizasyonu
+          </Link>
           <Link
             href="/dashboard/ipo/ext-applications"
             className="text-[11px] font-semibold px-3 py-1.5 rounded bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100 transition-colors"
@@ -66,10 +79,14 @@ export default async function IpoPage() {
 
       {/* Özet sayaçlar */}
       <div className="grid grid-cols-3 gap-2 my-2">
-        {STATUS_OPTIONS.map(({ value, label }) => (
-          <div key={value} className="bg-card border border-border rounded px-4 py-3 flex flex-col gap-1">
-            <span className="text-[22px] font-extrabold" style={{ color: value === 'aktif' ? 'var(--c-bull)' : value === 'taslak' ? 'var(--c-primary)' : 'var(--c-text-3)' }}>
-              {counts[value as keyof typeof counts]}
+        {([
+          { key: 'talep_toplaniyor',   label: 'Talep Toplanıyor',   color: '#1E6FCC' },
+          { key: 'dagitim_bekleniyor', label: 'Dağıtım Bekleniyor', color: '#D97706' },
+          { key: 'taslak',             label: 'Taslak',             color: 'var(--c-text-3)' },
+        ] as const).map(({ key, label, color }) => (
+          <div key={key} className="bg-card border border-border rounded px-4 py-3 flex flex-col gap-1">
+            <span className="text-[22px] font-extrabold" style={{ color }}>
+              {counts[key]}
             </span>
             <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">{label}</span>
           </div>

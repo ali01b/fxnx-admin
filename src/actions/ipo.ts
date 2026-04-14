@@ -23,6 +23,15 @@ export interface IpoApplication {
   ipo_listing?: { ticker: string; name: string; lot_fiyat: number | null; is_synthetic: boolean } | null
 }
 
+export type IpoStatus =
+  | 'taslak'
+  | 'aktif'              // geriye dönük uyumluluk
+  | 'talep_toplaniyor'
+  | 'dagitim_bekleniyor'
+  | 'dagitildi'
+  | 'gecmis'
+  | 'iptal'
+
 export interface IpoListing {
   id:                  string
   ticker:              string
@@ -31,10 +40,12 @@ export interface IpoListing {
   logo_url:            string | null
   source_url:          string | null
   badge:               string | null
-  status:              'aktif' | 'taslak' | 'gecmis'
+  status:              IpoStatus
   basvuru_baslangic:   string | null
   basvuru_bitis:       string | null
   borsa_giris:         string | null
+  dagitim_tarihi:      string | null
+  dagitim_yontemi:     string | null
   fiyat_alt:           number | null
   fiyat_ust:           number | null
   lot_fiyat:           number | null
@@ -123,6 +134,8 @@ export async function createIpoListing(fd: FormData) {
     basvuru_baslangic:     str(fd.get('basvuru_baslangic')),
     basvuru_bitis:         str(fd.get('basvuru_bitis')),
     borsa_giris:           str(fd.get('borsa_giris')),
+    dagitim_tarihi:        str(fd.get('dagitim_tarihi')),
+    dagitim_yontemi:       str(fd.get('dagitim_yontemi')),
     fiyat_alt:             num(fd.get('fiyat_alt')),
     fiyat_ust:             num(fd.get('fiyat_ust')),
     lot_fiyat:             num(fd.get('lot_fiyat')),
@@ -159,6 +172,8 @@ export async function updateIpoListing(fd: FormData) {
     basvuru_baslangic:     str(fd.get('basvuru_baslangic')),
     basvuru_bitis:         str(fd.get('basvuru_bitis')),
     borsa_giris:           str(fd.get('borsa_giris')),
+    dagitim_tarihi:        str(fd.get('dagitim_tarihi')),
+    dagitim_yontemi:       str(fd.get('dagitim_yontemi')),
     fiyat_alt:             num(fd.get('fiyat_alt')),
     fiyat_ust:             num(fd.get('fiyat_ust')),
     lot_fiyat:             num(fd.get('lot_fiyat')),
@@ -197,6 +212,12 @@ export async function updateIpoStatus(fd: FormData) {
 export async function deleteIpoListing(fd: FormData) {
   const supabase = createAdminClient()
   const id = fd.get('id') as string
+
+  // Positions'daki FK referansını temizle (pozisyonları silmiyoruz, bağlantıyı koparıyoruz)
+  await supabase
+    .from('positions')
+    .update({ ipo_listing_id: null })
+    .eq('ipo_listing_id', id)
 
   const { error } = await supabase
     .from('ipo_listings')
@@ -276,6 +297,18 @@ export async function distributeIpoLots(fd: FormData): Promise<{ success: boolea
   const ticker   = listing?.ticker as string
   if (!ticker) return { success: false, error: 'Ticker bulunamadı' }
 
+  // Borsa girişi tarihi kontrolü — henüz gelmemişse dağıtım yapılamaz
+  if (listing?.borsa_giris) {
+    const borsaGiris = new Date(listing.borsa_giris)
+    borsaGiris.setHours(0, 0, 0, 0)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    if (borsaGiris > today) {
+      const fmt = borsaGiris.toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+      return { success: false, error: `Dağıtım yapılamaz — borsa girişi ${fmt} tarihinde. Bu tarihten önce dağıtım yapılamaz.` }
+    }
+  }
+
   const posValue   = allocLots * lotFiyat
   const usedMargin = posValue  // leverage = 1 for IPO
 
@@ -313,4 +346,182 @@ export async function cancelIpoApplication(fd: FormData): Promise<void> {
 
   await supabase.from('ipo_applications').update({ status: 'iptal' }).eq('id', appId)
   revalidatePath('/dashboard/ipo')
+}
+
+// ── External API sync ───────────────────────────────────────────────────────
+
+const EXT_API = 'https://api.iletisimacar.com/api/ipo'
+
+// Türkçe ay adı → iki haneli rakam
+const TR_MONTHS: Record<string, string> = {
+  Ocak: '01', Şubat: '02', Mart: '03', Nisan: '04',
+  Mayıs: '05', Haziran: '06', Temmuz: '07', Ağustos: '08',
+  Eylül: '09', Ekim: '10', Kasım: '11', Aralık: '12',
+}
+
+function parseTrDate(s: string): string | null {
+  // "23 Şubat 2026" → "2026-02-23"
+  const m = s.trim().match(/(\d{1,2})\s+(\S+)\s+(\d{4})/)
+  if (!m) return null
+  const month = TR_MONTHS[m[2]]
+  if (!month) return null
+  return `${m[3]}-${month}-${m[1].padStart(2, '0')}`
+}
+
+function parseTrDateRange(s: string): { start: string | null; end: string | null } {
+  // "19-20 Şubat 2026" → aynı ay, iki gün
+  const sameMonth = s.trim().match(/(\d{1,2})-(\d{1,2})\s+(\S+)\s+(\d{4})/)
+  if (sameMonth) {
+    const month = TR_MONTHS[sameMonth[3]]
+    const year  = sameMonth[4]
+    if (!month) return { start: null, end: null }
+    return {
+      start: `${year}-${month}-${sameMonth[1].padStart(2, '0')}`,
+      end:   `${year}-${month}-${sameMonth[2].padStart(2, '0')}`,
+    }
+  }
+  // "19 Şubat - 20 Mart 2026" → farklı ay
+  const diffMonth = s.trim().match(/(\d{1,2})\s+(\S+)\s*-\s*(\d{1,2})\s+(\S+)\s+(\d{4})/)
+  if (diffMonth) {
+    const m1 = TR_MONTHS[diffMonth[2]], m2 = TR_MONTHS[diffMonth[4]], yr = diffMonth[5]
+    return {
+      start: m1 ? `${yr}-${m1}-${diffMonth[1].padStart(2, '0')}` : null,
+      end:   m2 ? `${yr}-${m2}-${diffMonth[3].padStart(2, '0')}` : null,
+    }
+  }
+  // tek tarih
+  const single = parseTrDate(s)
+  return { start: single, end: single }
+}
+
+function parseTrPrice(s: string): number | null {
+  // "22,00 TL" veya "22.00" → 22
+  const clean = s.replace(',', '.').replace(/[^\d.]/g, '')
+  const n = parseFloat(clean)
+  return isNaN(n) ? null : n
+}
+
+export interface ExtApiIpo {
+  ticker:   string
+  name:     string
+  dates:    string  // ham tarih aralığı metni
+  url:      string
+  slug:     string
+  category: string
+  badge:    string
+}
+
+/** Dış API'deki tüm aktif halka arzları çeker (admin senkronizasyon sayfası için) */
+export async function getExternalApiIpos(): Promise<{ items: ExtApiIpo[]; existingTickers: string[] }> {
+  const supabase = createAdminClient()
+
+  const [apiRes, dbRes] = await Promise.all([
+    fetch(`${EXT_API}/all`, { cache: 'no-store' }).then(r => r.json()).catch(() => null),
+    supabase.from('ipo_listings').select('ticker'),
+  ])
+
+  const items: ExtApiIpo[] = apiRes?.data?.aktif ?? []
+  const existingTickers = (dbRes.data ?? []).map((r: any) => r.ticker as string)
+
+  return { items, existingTickers }
+}
+
+/** Dış API'den tek bir halka arzı Supabase'e taslak olarak içe aktarır */
+export async function importIpoFromExternal(fd: FormData): Promise<{ success: boolean; error?: string }> {
+  const supabase  = createAdminClient()
+  const ticker    = (fd.get('ticker') as string).trim().toUpperCase()
+  const name      = (fd.get('name') as string).trim()
+  const extSlug   = fd.get('slug') as string
+  const extDates  = (fd.get('dates') as string | null) ?? ''
+  const sourceUrl = (fd.get('url') as string | null) ?? ''
+  const badge     = (fd.get('badge') as string | null) ?? ''
+
+  // Zaten var mı?
+  const { data: existing } = await supabase
+    .from('ipo_listings').select('id').eq('ticker', ticker).maybeSingle()
+  if (existing) return { success: false, error: `${ticker} zaten içe aktarılmış` }
+
+  // Detay endpoint'inden daha fazla bilgi çek
+  let basvuru_baslangic: string | null = null
+  let basvuru_bitis:     string | null = null
+  let dagitim_tarihi:    string | null = null
+  let dagitim_yontemi:   string | null = null
+  let lot_fiyat:         number | null = null
+  let fiyat_alt:         number | null = null
+  let fiyat_ust:         number | null = null
+  let sirket_aciklamasi: string | null = null
+
+  try {
+    const detail = await fetch(`${EXT_API}/detail/${extSlug}`, { cache: 'no-store' }).then(r => r.json())
+    const arz    = (detail?.arzDetaylari ?? {}) as Record<string, string>
+
+    // Talep Toplama Tarihleri
+    const talepKey = Object.keys(arz).find(k => k.toLowerCase().includes('talep') && k.toLowerCase().includes('tarih'))
+    if (talepKey) {
+      const { start, end } = parseTrDateRange(arz[talepKey])
+      basvuru_baslangic = start
+      basvuru_bitis     = end
+    } else if (extDates) {
+      const { start, end } = parseTrDateRange(extDates)
+      basvuru_baslangic = start
+      basvuru_bitis     = end
+    }
+
+    // Dağıtım Tarihi
+    const dagKey = Object.keys(arz).find(k => k.toLowerCase().includes('dağıtım') && k.toLowerCase().includes('tarih'))
+    if (dagKey) dagitim_tarihi = parseTrDate(arz[dagKey])
+
+    // Dağıtım Yöntemi
+    const yonKey = Object.keys(arz).find(k => k.toLowerCase().includes('yöntem') || k.toLowerCase().includes('yöntemi'))
+    if (yonKey) dagitim_yontemi = arz[yonKey]
+
+    // Fiyat
+    const fiyatKey = Object.keys(arz).find(k => k.toLowerCase().includes('fiyat'))
+    if (fiyatKey) {
+      const val = arz[fiyatKey]
+      if (val.includes('-')) {
+        // Aralık: "28,00 - 32,00 TL"
+        const parts = val.split('-')
+        fiyat_alt = parseTrPrice(parts[0])
+        fiyat_ust = parseTrPrice(parts[1])
+      } else {
+        lot_fiyat = parseTrPrice(val)
+      }
+    }
+
+    sirket_aciklamasi = detail?.sirketAciklamasi ?? null
+  } catch {
+    // Detay çekilemezse ham tarih metnini parse etmeyi dene
+    if (extDates) {
+      const { start, end } = parseTrDateRange(extDates)
+      basvuru_baslangic = start
+      basvuru_bitis     = end
+    }
+  }
+
+  const slug = toSlug(`${ticker}-${name}`)
+
+  const { error } = await supabase.from('ipo_listings').insert({
+    ticker,
+    name,
+    slug,
+    source_url:        sourceUrl || null,
+    badge:             badge || '',
+    status:            'taslak',
+    basvuru_baslangic,
+    basvuru_bitis,
+    dagitim_tarihi,
+    dagitim_yontemi,
+    lot_fiyat,
+    fiyat_alt,
+    fiyat_ust,
+    sirket_aciklamasi,
+    min_lot:           1,
+    tahsisat_dagilimi: [],
+    finansal_tablo:    [],
+  })
+
+  if (error) return { success: false, error: error.message }
+  revalidatePath('/dashboard/ipo')
+  return { success: true }
 }
